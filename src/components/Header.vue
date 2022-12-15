@@ -135,6 +135,25 @@ const toggleClass = (t) => {
   store.commit('saveTheme', theme.value);
   document.body.className = `sonic-${t}`;
 };
+// jenkins
+const jenkinsUrl = ref('');
+const saveJenkinsApkUrl = () => {
+  // http://10.23.3.94:8080/
+  console.log(jenkinsUrl.value);
+  axios
+      .post('/controller/users/saveJenkinsUrl', {
+       url: jenkinsUrl.value
+         }).then((resp) => {
+          if (resp.code === 2000) {
+            ElMessage.success({
+              message: '保存成功',
+            });
+            dialogJenkinsUrlSet.value = false;
+          }
+        });
+};
+const dialogJenkinsUrlSet = ref(false);
+
 onBeforeMount(() => {
   theme.value = localStorage.getItem('SonicTheme')
     ? localStorage.getItem('SonicTheme')
@@ -143,6 +162,7 @@ onBeforeMount(() => {
 onMounted(() => {
   toggleClass(theme.value);
   getProjectList();
+  jenkinsUrl.value = store.state.userInfo.jenkinsUrl;
 });
 
 // 国际化设置
@@ -280,8 +300,12 @@ const changeLocaleHandler = function (val) {
             <el-menu-item index="1-1" @click="dialogUserInfo = true">{{
               $t('layout.myInfo')
             }}</el-menu-item>
-            <el-menu-item index="1-2" @click="dialogChangePwd = true">{{
+            <!-- 关闭修改密码 -->
+            <!-- <el-menu-item index="1-2" @click="dialogChangePwd = true">{{
               $t('layout.changePassword')
+            }}</el-menu-item> -->
+            <el-menu-item index="1-2" @click="dialogJenkinsUrlSet = true">{{
+              $t('layout.jenkinsApkUrl')
             }}</el-menu-item>
             <el-menu-item index="1-4" @click="dialogToken = true"
               >Access Token</el-menu-item
@@ -368,6 +392,34 @@ const changeLocaleHandler = function (val) {
           </el-tag>
         </el-form-item>
       </el-form>
+    </el-dialog>
+    <el-dialog
+      v-model="dialogJenkinsUrlSet"
+      :title="$t('layout.jenkinsApkUrl')"
+      width="520px"
+    >
+      <el-form
+        label-position="left"
+        class="demo-table-expand"
+        size="small"
+      >
+        <el-form-item
+          :rules="{
+            validator: validatePass,
+            trigger: 'blur',
+          }"
+        >
+          <el-input
+            v-model="jenkinsUrl"
+            :placeholder="$t('请输入jenkins apk url地址')"
+          ></el-input>
+        </el-form-item>
+      </el-form>
+      <div style="text-align: center">
+        <el-button size="small" type="primary" @click="saveJenkinsApkUrl">{{
+          $t('form.confirm')
+        }}</el-button>
+      </div>
     </el-dialog>
     <el-dialog
       v-model="dialogChangePwd"

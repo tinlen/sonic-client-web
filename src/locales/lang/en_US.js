@@ -119,6 +119,7 @@ const layout = {
   addProject: 'New Project',
   officialWebSite: 'Sonic Official WebSite',
   versionUpdateRecord: 'Version Record',
+  jenkinsApkUrl: 'Jenkins Url Setting',
 };
 // 表单相关
 const form = {
