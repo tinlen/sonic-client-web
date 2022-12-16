@@ -175,7 +175,6 @@ const element = ref({
   projectId: 0,
 });
 const jenkinsSearchKeywork = ref('');
-const jenkinsHasBind = ref(false);
 const jenkinsTask = ref([]);
 const jenkinsSearchChange = (value) => {
   getJenkinsTask();
@@ -201,6 +200,9 @@ const getJenkinsTask = async () => {
   // Authorization：Basic cWlucWlhbmx1bjpRaW5AOTExMTAz，base64Encode(username.小写:password)
   const authorization = store.state.userInfo.password;
   const jenkinsUrl = store.state.userInfo.jenkinsUrl;
+  if (jenkinsUrl === 'undefined' || jenkinsUrl == null || jenkinsUrl === '') {
+    return;
+  }
   const api = `${jenkinsUrl}/api/json?tree=jobs[name,builds[fullDisplayName,displayName,url,building,timestamp,actions[parameters[name,value],causes[userName],lastBuiltRevision[branch[name]]]]]`;
   const response = await fetch(api, {
     method: 'GET',
@@ -717,10 +719,18 @@ const terminalWebsocketOnmessage = (message) => {
       cmdOutPut.value.push($t('androidRemoteTS.connection'));
       break;
     case 'terResp':
-      cmdOutPut.value.push(JSON.parse(message.data).detail);
+      const detail = JSON.parse(message.data).detail;
+      cmdOutPut.value.push(detail);
       nextTick(() => {
         terScroll.value.wrap.scrollTop = terScroll.value.wrap.scrollHeight;
       });
+      // 获取粘贴板
+      if (clipperClick.value) {
+        const clipperData = getClipperData(detail);
+        if (clipperData && clipperData !== '') {
+          copy(clipperData);
+        }
+      }
       break;
     case 'terDone':
       cmdIsDone.value = true;
@@ -1590,6 +1600,59 @@ const stopKeyboard = () => {
     })
   );
 };
+const clipperClick = ref(false);
+const closeClipper =() =>{
+  console.log("3.关闭Clipper");
+  const closeClipperCmd = 'am force-stop ca.zgrs.clipper';
+  terminalWebsocket.send(
+              JSON.stringify({
+                type: 'command',
+                detail: closeClipperCmd,
+              })
+            );
+  clipperClick.value = false;
+}
+const clipperGet = () => {
+  console.log("2.获取Clipper");
+  clipperClick.value = true;
+  const getClipperCmd = 'am broadcast -a clipper.get';
+  terminalWebsocket.send(
+              JSON.stringify({
+                type: 'command',
+                detail: getClipperCmd,
+              })
+            );
+  setTimeout(closeClipper, 500);
+}
+
+// 解析粘贴内容
+const getClipperData = (value) => {
+  console.log("解析粘贴内容");
+  console.log(value);
+  const indexStr = 'result=-1, data=';
+  const index = value.indexOf(indexStr);
+  console.log(index);
+  if (index > 0) {
+    const len = indexStr.length;
+    const data = value.substring(index + len);
+    console.log(data);
+    return data;
+  }
+  return '';
+}
+
+const getClipper = () => {
+  console.log("1.打开Clipper");
+  const startClipperCmd = 'am start -n ca.zgrs.clipper/ca.zgrs.clipper.Main';
+  terminalWebsocket.send(
+              JSON.stringify({
+                type: 'command',
+                detail: startClipperCmd,
+              })
+            );
+  setTimeout(clipperGet, 800);
+};
+
 const install = (apk) => {
   if (apk.length > 0) {
     websocket.send(
@@ -1736,12 +1799,6 @@ const getProjectList = () => {
   });
 };
 onMounted(() => {
-  const jenkinsUrl = store.state.userInfo.jenkinsUrl;
-  if (jenkinsUrl.startsWith('http')) {
-    jenkinsHasBind.value = true;
-  } else {
-    jenkinsHasBind.value = false;
-  }
   if (store.state.project.id) {
     project.value = store.state.project;
   } else {
@@ -2514,8 +2571,13 @@ onMounted(() => {
                     <el-button size="mini" type="primary" @click="startKeyboard"
                       >{{ $t('androidRemoteTS.code.startKeyboard') }}
                     </el-button>
+                  </div>
+                  <div style="text-align: center; margin-top: 12px">
                     <el-button size="mini" type="primary" @click="stopKeyboard"
                       >{{ $t('androidRemoteTS.code.stopKeyboard') }}
+                    </el-button>
+                    <el-button size="mini" type="primary" @click="getClipper"
+                      >获取粘贴板
                     </el-button>
                   </div>
                 </el-card>
@@ -4003,7 +4065,6 @@ onMounted(() => {
             </div>
           </el-tab-pane>
           <el-tab-pane
-            v-if="jenkinsHasBind"
             label="Jenkins"
             name="Jenkins">
             <el-button
@@ -4034,18 +4095,18 @@ onMounted(() => {
               <el-table-column
                 prop="timestamp"
                 label="构建时间"
-                width="250"
+                min-width="25%"
                 :formatter="dateFormat"
                 sortable/>
               <el-table-column
                 prop="userName"
                 label="操作人"
-                width="200"
+                min-width="18%"
                 sortable/>
               <el-table-column
                 prop=""
                 label="构建参数"
-                width="200">
+                min-width="15%">
                 <template #default="scope">
                   <el-popover placement="left" :width="300" trigger="hover">
                     <template #reference>

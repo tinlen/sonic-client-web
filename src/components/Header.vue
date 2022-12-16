@@ -1,7 +1,7 @@
 <script setup>
 import { useStore } from 'vuex';
 import { useRoute, useRouter } from 'vue-router';
-import { onBeforeMount, onMounted, ref, watch } from 'vue';
+import { onBeforeMount, onMounted, ref, watch, computed} from 'vue';
 import {
   Fold,
   Expand,
@@ -137,6 +137,19 @@ const toggleClass = (t) => {
 };
 // jenkins
 const jenkinsUrl = ref('');
+
+const userInfo = computed(() => {
+  return store.getters.getUserInfo;
+});
+
+watch(userInfo, () => {
+  const url = userInfo.value.jenkinsUrl;
+  if (url) {
+    jenkinsUrl.value = url;
+  }
+  console.log(`用户信息${userInfo.value.userName}`);
+});
+
 const saveJenkinsApkUrl = () => {
   // http://10.23.3.94:8080/
   console.log(jenkinsUrl.value);

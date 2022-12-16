@@ -70,6 +70,9 @@ export default createStore({
     getLocale(state) {
       return state.localInfo?.locale ?? 'zh_CN';
     },
+    getUserInfo(state) {
+      return state.userInfo;
+    }
   },
   actions: {
     // 设置国际化相关信息
