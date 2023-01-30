@@ -646,6 +646,7 @@ const androidRemoteTS = {
       againGetWeb: '重新获取webView进程',
       Untitled: '无标题',
       nowDebug: '马上调试',
+      copyUrl: '复制链接',
       return: '返回',
       nowWeb: '当前页面',
       messageInfo: '如果您的浏览器不兼容该功能，请您及时反馈到',

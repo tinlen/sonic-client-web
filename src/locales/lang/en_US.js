@@ -660,6 +660,7 @@ const androidRemoteTS = {
       againGetWeb: 'Retrieve webView process',
       Untitled: 'No title',
       nowDebug: 'Debug now',
+      copyUrl: 'Copy url',
       return: 'Return',
       nowWeb: 'Current page',
       messageInfo:

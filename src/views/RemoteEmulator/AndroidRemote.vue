@@ -1697,6 +1697,12 @@ const getWebViewForward = () => {
     })
   );
 };
+const copyWebUrl = (value) => {
+  toClipboard(value);
+  ElMessage.success({
+    message: '复制成功！',
+  });
+};
 const close = () => {
   if (websocket !== null) {
     websocket.close();
@@ -4013,10 +4019,18 @@ onMounted(() => {
                           }}
                         </div>
                       </div>
-                      <el-button
-                        type="primary"
-                        size="mini"
-                        @click="
+                      <div>
+                        <el-button
+                          type="primary"
+                          size="mini"
+                          @click="copyWebUrl(w.url)"
+                          >
+                        {{ $t('androidRemoteTS.code.webView.copyUrl') }}
+                        </el-button>
+                        <el-button
+                          type="primary"
+                          size="mini"
+                          @click="
                           tabWebView(
                             web.port,
                             w.id,
@@ -4024,10 +4038,11 @@ onMounted(() => {
                               ? w.title
                               : $t('androidRemoteTS.code.webView.Untitled')
                           )
-                        "
-                      >
+                          "
+                          >
                         {{ $t('androidRemoteTS.code.webView.nowDebug') }}
-                      </el-button>
+                        </el-button>
+                      </div>
                     </div>
                   </el-card>
                 </el-card>

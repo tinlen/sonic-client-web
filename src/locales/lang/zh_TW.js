@@ -644,6 +644,7 @@ const androidRemoteTS = {
       againGetWeb: '重新獲取webView進程',
       Untitled: '無標題',
       nowDebug: '馬上除錯',
+      copyUrl: 'Copy url',
       return: '返回',
       nowWeb: '目前頁面',
       messageInfo: '如果您的瀏覽器不相容該功能，請您及時反映到',
