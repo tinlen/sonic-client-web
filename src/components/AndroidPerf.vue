@@ -19,9 +19,9 @@
 import { View, VideoPause, Delete } from '@element-plus/icons';
 import { useI18n } from 'vue-i18n';
 import { ref } from 'vue';
-import IOSPerfChart from './IOSPerfChart.vue';
+import AndroidPerfChart from './AndroidPerfChart.vue';
 
-const iosPerfChart = ref(null);
+const androidPerfChart = ref(null);
 const { t: $t } = useI18n();
 const emit = defineEmits(['startPerfmon', 'stopPerfmon']);
 const isStart = ref(false);
@@ -38,52 +38,56 @@ const stopPerfmon = () => {
   isStart.value = false;
 };
 const clearPerfmon = () => {
-  cpu.value = [];
-  mem.value = [];
-  gpu.value = [];
-  fps.value = [];
-  disk.value = [];
-  network.value = [];
-  procPerf.value = [];
+  sysCpu.value = [];
+  sysMem.value = [];
+  sysNetwork.value = [];
+  procCpu.value = [];
+  procMem.value = [];
+  procFps.value = [];
+  procThread.value = [];
 };
 const setData = (data) => {
-  if (data.type === 'sys_cpu') {
-    cpu.value.push(data);
-    iosPerfChart.value.printCpu();
+  if (data.process) {
+    if (data.process.cpuInfo) {
+      procCpu.value.push(data.process.cpuInfo);
+      androidPerfChart.value.printPerfCpu();
+    }
+    if (data.process.memInfo) {
+      procMem.value.push(data.process.memInfo);
+      androidPerfChart.value.printPerfMem();
+    }
+    if (data.process.fpsInfo) {
+      procFps.value.push(data.process.fpsInfo);
+      androidPerfChart.value.printProcFps();
+    }
+    if (data.process.threadInfo) {
+      procThread.value.push(data.process.threadInfo);
+      androidPerfChart.value.printProcThread();
+    }
   }
-  if (data.type === 'sys_mem') {
-    mem.value.push(data);
-    iosPerfChart.value.printMem();
-  }
-  if (data.type === 'gpu') {
-    gpu.value.push(data);
-    iosPerfChart.value.printGpu();
-  }
-  if (data.type === 'fps') {
-    fps.value.push(data);
-    iosPerfChart.value.printFps();
-  }
-  if (data.type === 'sys_disk') {
-    disk.value.push(data);
-    iosPerfChart.value.printDisk();
-  }
-  if (data.type === 'sys_network') {
-    network.value.push(data);
-    iosPerfChart.value.printNetwork();
-  }
-  if (data.type === 'process') {
-    procPerf.value.push(data);
-    iosPerfChart.value.printPerfCpu();
-    iosPerfChart.value.printPerfMem();
+  if (data.system) {
+    if (data.system.cpuInfo) {
+      sysCpu.value.push(data.system.cpuInfo);
+      androidPerfChart.value.printCpu();
+      androidPerfChart.value.printSingleCpu();
+    }
+    if (data.system.memInfo) {
+      sysMem.value.push(data.system.memInfo);
+      androidPerfChart.value.printMem();
+    }
+    if (data.system.networkInfo) {
+      sysNetwork.value.push(data.system.networkInfo);
+      androidPerfChart.value.printNetwork();
+    }
   }
 };
-const cpu = ref([]);
-const mem = ref([]);
-const gpu = ref([]);
-const fps = ref([]);
-const disk = ref([]);
-const network = ref([]);
-const procPerf = ref([]);
+const sysCpu = ref([]);
+const sysMem = ref([]);
+const sysNetwork = ref([]);
+const procCpu = ref([]);
+const procMem = ref([]);
+const procFps = ref([]);
+const procThread = ref([]);
 defineExpose({ setData });
 </script>
 
@@ -97,15 +101,15 @@ defineExpose({ setData });
       size="mini"
       :placeholder="$t('perf.select')"
     >
-      <el-option v-for="a in appList" :value="a.bundleId">
+      <el-option v-for="a in appList" :value="a.packageName">
         <div style="display: flex; align-items: center">
           <el-avatar
             style="margin-right: 10px"
             :size="30"
-            :src="'data:image/png;base64,' + a.iconBase64"
+            :src="'data:image/png;base64,' + a.appIcon"
             shape="square"
           ></el-avatar>
-          {{ a.name }}
+          {{ a.appName }}
           <span
             style="
               float: right;
@@ -114,7 +118,7 @@ defineExpose({ setData });
               font-size: 13px;
               font-style: italic;
             "
-            >{{ a.bundleId }}</span
+            >{{ a.packageName }}</span
           >
         </div>
       </el-option>
@@ -142,18 +146,18 @@ defineExpose({ setData });
       </el-icon>
       {{ $t('perf.clear') }}
     </el-button>
-    <i-o-s-perf-chart
-      ref="iosPerfChart"
+    <android-perf-chart
+      ref="androidPerfChart"
       :cid="0"
       :rid="0"
       :did="0"
-      :cpu="cpu"
-      :mem="mem"
-      :fps="fps"
-      :gpu="gpu"
-      :disk="disk"
-      :network="network"
-      :proc-perf="procPerf"
+      :sys-cpu="sysCpu"
+      :sys-mem="sysMem"
+      :sys-network="sysNetwork"
+      :proc-cpu="procCpu"
+      :proc-mem="procMem"
+      :proc-fps="procFps"
+      :proc-thread="procThread"
     />
   </div>
 </template>

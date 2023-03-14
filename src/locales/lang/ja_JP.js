@@ -1,6 +1,162 @@
 /**
  * JP language
  */
+const element = {
+  currentIteration: '当前迭代控件',
+  modelFilter: '模块筛选',
+  nameFilter: '名称筛选',
+  namePlace: '请输入控件名称筛选',
+  iterationList: '迭代控件列表',
+  whenList: '当父级步骤存在',
+  thenList: '时，可选择本控件作为',
+  last: ' 进行操作',
+  paramTip: '需要临时变量或全局变量时，可以添加 双花括号包含变量名 的形式',
+  name: '控件名称',
+  nameMsg: '请输入控件元素名称',
+  type: '定位类型',
+  typePlace: '请选择定位类型',
+  deviceType: '移动端常用定位方式',
+  specType: '特殊定位方式',
+  point: '坐标（支持相对坐标）',
+  poco: 'POCO（仅支持游戏控件）',
+  image: '图片',
+  webViewType: 'WebView常用定位方式',
+  value: '控件元素值',
+  valuePlace: '请输入控件元素值',
+  model: '所属模块',
+  modelPlace: '请选择模块',
+};
+const suite = {
+  name: '套件名称',
+  namePlace: '请填写套件名称',
+  perf: '性能采集',
+  interval: '采集间隔',
+  devicePlace: '请选择测试设备，可输入型号、备注、中文名称、序列号筛选',
+  selectedCase: '已选用例',
+};
+const testcase = {
+  info: '用例信息',
+  namePlace: '输入用例名称搜索',
+  model: '模块名称',
+  version: '版本名称',
+  designer: '设计人',
+  editTime: '最后修改日期',
+  deleteTip: '确定删除该用例吗？用例下的步骤将移出该用例',
+  name: '用例名称',
+  nameMsg: '请填写用例名称',
+  project: '所属项目',
+  projectPlace: '请选择项目',
+  platform: '平台',
+  platformPlace: '请选择平台',
+  modelLabel: '模块',
+  modelPlace: '请选择模块',
+  versionLabel: '版本',
+  versionPlace: '请选择版本',
+  des: '用例描述',
+  desPlace: '输入用例描述',
+  empty: '暂无用例',
+  add: '马上添加',
+  list: '用例列表',
+};
+const pubSteps = {
+  pList: '公共步骤列表',
+  alertOne: '该步骤已存在于以下公共步骤中！',
+  alertTwo: '选择【仅移出本用例】后，步骤从本用例删除，不影响以下公共步骤。',
+  alertThree:
+    '选择【彻底删除】后，本步骤从本用例删除，并且从以下公共步骤中删除本步骤。',
+  resetCaseId: '仅移出本用例',
+  deleteReal: '彻底删除',
+  auto: '自动保存中...',
+  selectPass: '选择成功！已加入到已选步骤',
+  removePass: '移出成功！',
+  stepInfo: '步骤信息',
+  name: '公共步骤名称',
+  nameMsg: '公共步骤名称不能为空',
+  namePlace: '请输入公共步骤名称',
+  platform: '平台',
+  platformPlace: '请选择平台',
+  stepTip: '保存后即可编辑已选步骤',
+  selected: '已选步骤',
+  list: '步骤列表',
+  listTip: '从此处添加或编辑步骤，并加入到已选步骤中',
+  addStep: '添加步骤',
+  searchPlace: '按照控件元素名称搜索',
+  search: '搜索',
+  case: '所属用例Id',
+  deleteCaseTip: '确定彻底删除该步骤吗？',
+  goToCase: '前往用例详情',
+  goToCaseTip: '该步骤存在于用例中，删除前需前往用例详情移出！',
+};
+const steps = {
+  step: '步骤',
+  cases: '所属用例：',
+  empty: '暂无步骤',
+  remove: '确定移除该步骤吗？',
+  run: '开始运行',
+  forceStep: '强制终止',
+  clear: '清空',
+  status: '状态',
+  time: '时间',
+  detail: '步骤详情',
+  script: '点击展开/收起脚本',
+  running: '运行中',
+  done: '运行完毕',
+  loading: '加载中',
+  loadDone: '加载完毕',
+  loadMore: '加载更多',
+};
+const code = {
+  placeholder: '请选择',
+  settings: '设置',
+  temp: '导入模板',
+  table: {
+    name: '输入名称搜索',
+    lang: '脚本语言',
+    type: '导入方式',
+    add: '追加',
+    replace: '替换',
+  },
+  tip: '编辑后记得保存哦',
+};
+const token = {
+  day: '过期天数',
+  result: '生成结果',
+  click: '(请点击复制)',
+  copy: '点击确定后在此处复制',
+};
+const project = {
+  logo: '项目Logo',
+  name: '项目名称',
+  nameMessage: '项目名称不能为空',
+  namePlace: '请输入项目名',
+  des: '项目描述',
+  desPlace: '请输入项目描述',
+  delete: '删除项目',
+  deleteConfirmMsg: '确定删除这个项目吗？',
+  deleteConfirmMsgDes: '项目包含的所有信息将一并删除！',
+};
+const perf = {
+  select: '(可选) 点此可指定监听应用Process性能',
+  start: '开始监控',
+  stop: '停止监控',
+  clear: '清空数据',
+  singleCpu: 'CPU单核使用率',
+  totalCpu: 'CPU总使用率',
+  memUsage: '内存占用',
+  network: '上下行',
+  procCpu: 'CPU使用率',
+  emptyData: '暂无数据',
+  byteData: '数据量',
+};
+const script = {
+  name: '模板名称',
+  namePlace: '请填写模板名称',
+  info: '模板信息',
+  add: '新增模板',
+  typeSearch: '输入名称搜索',
+  lang: '脚本语言',
+  deleteMsg: '确定删除该脚本模板吗？',
+};
 const robot = {
   robotType: '机器人类型',
   robotTypePlaceholder: '请选择机器人类型',
@@ -10,6 +166,9 @@ const robot = {
   robotSecretPlaceholder: '（可选）请输入群机器人的密钥',
 };
 const agent = {
+  hub: {
+    config: 'Hub配置',
+  },
   newAgent: 'エージェント追加',
   clickToCopy: 'クリックしてコピー',
   status: {
@@ -23,11 +182,11 @@ const agent = {
   operation: 'ショートカット',
   shutdown: 'ダウン',
   edit: {
-    name: 'エージェント名称',
+    name: 'Agent名称',
     highTemp: '高温值',
     highTempTime: '高温超时',
-    rule: 'エージェント名称が必要です',
-    namePlaceholder: 'エージェント名称を入力してください',
+    rule: 'Agent名称が必要です',
+    namePlaceholder: 'Agent名称を入力してください',
   },
 };
 const devices = {
@@ -64,7 +223,7 @@ const devices = {
   useRightNow: 'すぐ使う',
   moreDetail: '詳細',
   deviceCenter: 'デバイスセンター',
-  agentCenter: 'エージェントセンター',
+  agentCenter: 'Agentセンター',
   status: {
     ONLINE: '利用可能',
     DEBUGGING: '利用中',
@@ -119,6 +278,7 @@ const layout = {
     'Sonicクラウドデバイステストプラットフォームへようこそ、プロジェクトを選んでください',
   addProject: 'プロジェクト追加',
   officialWebSite: 'Sonic公式サイト',
+  document: '使用文档',
   versionUpdateRecord: '更新履歴',
 };
 // 表单相关
@@ -143,19 +303,28 @@ const form = {
 };
 // 弹窗相关
 const dialog = {
+  welcome: 'お帰りなさい！',
   permissionDenied: '現在のユーザーには権限がありません！',
   suffixError: 'ファイルフォーマットが間違っています!',
   projectInfo: 'プロジェクト情報',
-  agentInfo: 'エージェント情報',
+  agentInfo: 'Agent情報',
   myInfo: '個人情報',
   changePassword: 'パスワード変更',
   copy: {
     success: 'コピー成功!',
     fail: 'コピー失敗!',
   },
+  ready: '后台准备中...请稍后...',
+  error: '系统出错了！',
 };
 // 通用操作
 const common = {
+  release: '后将自动解除占用',
+  releaseTip: '确定强制解除该设备占用状态吗？',
+  at: '在 ',
+  hour: '时',
+  min: '分',
+  sec: '秒',
   null: 'なし',
   delete: '删除',
   edit: '编辑',
@@ -182,8 +351,11 @@ const routes = {
   timedTask: 'タイミングタスク',
   projectSetting: 'プロジェクトの設定',
   projectPage: 'プロジェクトのトップページ',
-  resource: '',
-  role: '',
+  resource: 'Resource Manage',
+  role: 'Roles Manage',
+  users: 'Users Manage',
+  sysJobs: 'System Jobs',
+  remoteSettings: 'Remote Settings',
   scripts: '脚本模板',
 };
 const setting = {
@@ -197,7 +369,7 @@ const elements = {
   stepInfo: '步骤信息',
   warn: '警告',
   warnInfo:
-    '该控件已存在于以下步骤中,删除该控件将连同以下步骤一并删除！请前往对应步骤修改控件或确认对应步骤已废弃！',
+    '该控件已存在于以下步骤中，删除该控件后会影响以下步骤！请删除后前往对应步骤修改控件或确认对应步骤已废弃！',
   stepList: {
     stepId: '步骤Id',
     useCaseId: '所属用例Id',
@@ -454,6 +626,7 @@ const testSuitesTS = {
   delMessage: '确定删除该测试套件吗？套件下的用例将移出该套件',
 };
 const versionsTS = {
+  name: '名称',
   iteration: '版本迭代信息',
   noNull: '版本名称不能为空',
   inputName: '请输入版本名称',
@@ -464,6 +637,24 @@ const versionsTS = {
   delMessage: '确定删除该版本吗？',
 };
 const androidRemoteTS = {
+  element: {
+    windows: {
+      single: '单窗口模式',
+      multi: '多窗口模式',
+    },
+    visible: {
+      hid: '隐藏Invisible控件',
+      show: '显示Invisible控件',
+    },
+    unimportant: {
+      ignore: '忽略不重要视图',
+      show: '不忽略不重要视图',
+    },
+  },
+  driverStatus: {
+    success: '初始化 UIAutomator2 Server 完成！',
+    fail: '初始化 UIAutomator2 Server 失败！',
+  },
   repairedSuccess: '修复成功',
   associationSuccess: '关联成功',
   copySuccess: '复制成功',
@@ -538,13 +729,16 @@ const androidRemoteTS = {
     remoteControlPanel: '远控面板',
     inputText: '输入文本',
     pleaseText: '请输入要发送的文本，支持简体中文',
-    send: '清空输入框',
+    clear: '清空输入框',
+    send: '发送',
     keyboard: '清空输入框与实时输入仅在Sonic输入法开启时可用',
     startKeyboard: '启动Sonic输入法',
     stopKeyboard: '禁用Sonic输入法',
     remoteADB: '远程ADB',
     noAgent: '所在Agent未开启该功能！',
     UIAutomator2ServerInit: '初始化UIAutomator2Server',
+    closeDriver: '停止UIAutomator2Server',
+    closeDriverMessage: '停止UIAutomator2Server成功！',
     automaticInitialization: '下次进入自动初始化',
     scanQRCode: '扫描二维码',
     errTitle: 'OPPO、vivo部分机型上传二维码后不出现在相册，需要重启后生效',
@@ -621,16 +815,16 @@ const androidRemoteTS = {
     absolutePath: '绝对路径',
     centerXY: '中心坐标',
     label: {
-      one: '是否可勾选',
-      two: '是否勾选',
-      three: '是否可点击',
-      four: '是否被选',
-      five: '是否显示',
-      six: '是否可用',
-      seven: '是否可聚焦',
-      eight: '是否聚焦',
-      nine: '是否支持长按',
-      ten: '是否支持滚动',
+      checkable: 'checkable',
+      checked: 'checked',
+      clickable: 'clickable',
+      selected: 'selected',
+      displayed: 'displayed',
+      enabled: 'enable',
+      focusable: 'focusable',
+      focused: 'focused',
+      longClickable: 'long-clickable',
+      scrollable: 'scrollable',
     },
     subTitleText: '请先获取控件元素，该功能需要初始化Driver',
     getEle: '获取控件元素',
@@ -667,6 +861,12 @@ const settingIndexTS = {
     userCon: '用户配置',
     systemCon: '系统配置',
     scheduled: '系统定时任务',
+    remoteSettings: '远程控制配置',
+  },
+  remote: {
+    alertMsg:
+      '用于配置远程控制的最长占用时间，超过该时间后，会自动解除当前的占用情况恢复为空闲。（仅影响远程控制，运行测试的设备不受影响）',
+    text: '远控最长占用时间：',
   },
 };
 const resourceTS = {
@@ -733,6 +933,13 @@ const usersTS = {
   },
 };
 const IOSRemote = {
+  driverStatus: {
+    success: '初始化 WebDriverAgent 完成！',
+    fail: '初始化 WebDriverAgent 失败！',
+  },
+  eleScreen: {
+    err: '获取元素截图失败！',
+  },
   perfmon: 'PerfMon',
   startSimulating: '开始模拟定位...',
   positioningRestored: '已恢复定位',
@@ -818,5 +1025,15 @@ export default {
     sysJobsTS,
     usersTS,
     IOSRemote,
+    script,
+    perf,
+    steps,
+    code,
+    token,
+    project,
+    pubSteps,
+    testcase,
+    suite,
+    element,
   },
 };

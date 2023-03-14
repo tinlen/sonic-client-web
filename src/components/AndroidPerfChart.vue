@@ -17,6 +17,7 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import moment from 'moment/moment';
+import { useI18n } from 'vue-i18n';
 import * as echarts from 'echarts/core';
 import {
   TitleComponent,
@@ -29,7 +30,6 @@ import {
 import { LineChart } from 'echarts/charts';
 import { CanvasRenderer } from 'echarts/renderers';
 import { nextTick } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 echarts.use([
   DataZoomComponent,
@@ -47,14 +47,189 @@ const props = defineProps({
   rid: String,
   cid: Number,
   did: Number,
-  cpu: Array,
-  mem: Array,
-  gpu: Array,
-  fps: Array,
-  disk: Array,
-  network: Array,
-  procPerf: Array,
+  sysCpu: Array,
+  sysMem: Array,
+  sysNetwork: Array,
+  procCpu: Array,
+  procMem: Array,
+  procFps: Array,
+  procThread: Array,
 });
+
+const getNetworkTimeStamp = () => {
+  const result = [];
+  if (props.sysNetwork.length > 0) {
+    for (const i in props.sysNetwork[0]) {
+      if (i) {
+        props.sysNetwork.map((obj) => {
+          result.push(moment(new Date(obj[i].timeStamp)).format('HH:mm:ss'));
+        });
+        break;
+      }
+    }
+  }
+  return result;
+};
+
+const getNetworkDataGroup = () => {
+  const result = [];
+  if (props.sysNetwork.length > 0) {
+    for (const i in props.sysNetwork[0]) {
+      const tx = [];
+      const rx = [];
+      props.sysNetwork.map((obj) => {
+        tx.push(obj[i].tx);
+        rx.push(obj[i].rx);
+      });
+      result.push({
+        type: 'line',
+        name: `${i}_tx`,
+        data: tx,
+        showSymbol: false,
+        boundaryGap: false,
+      });
+      result.push({
+        type: 'line',
+        name: `${i}_rx`,
+        data: rx,
+        showSymbol: false,
+        boundaryGap: false,
+      });
+    }
+  }
+  return result;
+};
+const getCpuDataGroup = () => {
+  const result = [];
+  if (props.sysCpu.length > 0) {
+    for (const i in props.sysCpu[0].cpu) {
+      if (i !== 'timeStamp') {
+        result.push({
+          type: 'line',
+          name: i,
+          data: props.sysCpu.map((obj) => {
+            if (obj.cpu) {
+              return obj.cpu[i];
+            }
+            return 0;
+          }),
+          showSymbol: false,
+          areaStyle: {},
+          boundaryGap: false,
+        });
+      }
+    }
+  }
+  return result;
+};
+const getCpuDataLegend = () => {
+  const result = [];
+  if (props.sysCpu.length > 0) {
+    for (const i in props.sysCpu[0].cpu) {
+      if (i !== 'timeStamp') {
+        result.push(i);
+      }
+    }
+  }
+  return result;
+};
+const getCpuLegend = () => {
+  const result = [];
+  if (props.sysCpu.length > 0) {
+    for (const i in props.sysCpu[0]) {
+      if (i !== 'cpu') {
+        result.push(i);
+      }
+    }
+  }
+  return result;
+};
+const getCpuGroup = () => {
+  const result = [];
+  if (props.sysCpu.length > 0) {
+    for (const i in props.sysCpu[0]) {
+      if (i !== 'cpu') {
+        result.push({
+          type: 'line',
+          name: i,
+          data: props.sysCpu.map((obj) => {
+            if (obj[i]) {
+              return obj[i].cpuUsage;
+            }
+            return 0;
+          }),
+          showSymbol: false,
+          areaStyle: {},
+          boundaryGap: false,
+        });
+      }
+    }
+  }
+  return result;
+};
+const printSingleCpu = () => {
+  let chart = echarts.getInstanceByDom(
+    document.getElementById(
+      `${props.rid}-${props.cid}-${props.did}-` + `sysSingleCpuChart`
+    )
+  );
+  if (chart == null) {
+    chart = echarts.init(
+      document.getElementById(
+        `${props.rid}-${props.cid}-${props.did}-` + `sysSingleCpuChart`
+      )
+    );
+  }
+  chart.resize();
+  const option = {
+    title: {
+      text: 'System Single-Core CPU',
+      textStyle: {
+        color: '#606266',
+      },
+      x: 'center',
+      y: 'top',
+    },
+    tooltip: {
+      trigger: 'axis',
+      position(pos, params, dom, rect, size) {
+        const obj = { top: 60 };
+        obj[['left', 'right'][+(pos[0] < size.viewSize[0] / 2)]] = 5;
+        return obj;
+      },
+      valueFormatter: (value) => `${value.toFixed(3)} %`,
+    },
+    legend: {
+      top: '8%',
+      data: getCpuLegend(),
+    },
+    grid: { top: '26%' },
+    toolbox: {
+      feature: {
+        saveAsImage: { show: true, title: 'Save' },
+      },
+    },
+    xAxis: {
+      boundaryGap: false,
+      type: 'category',
+      data: props.sysCpu.map((obj) => {
+        return moment(new Date(obj.cpu.timeStamp)).format('HH:mm:ss');
+      }),
+    },
+    dataZoom: [
+      {
+        show: true,
+        realtime: true,
+        start: 30,
+        end: 100,
+        xAxisIndex: [0, 1],
+      },
+    ],
+    yAxis: [{ name: `${$t('perf.singleCpu')}(%)`, min: 0 }],
+    series: getCpuGroup(),
+  };
+  chart.setOption(option);
+};
 const printCpu = () => {
   let chart = echarts.getInstanceByDom(
     document.getElementById(
@@ -71,7 +246,7 @@ const printCpu = () => {
   chart.resize();
   const option = {
     title: {
-      text: 'System CPU',
+      text: 'System Total CPU',
       textStyle: {
         color: '#606266',
       },
@@ -80,8 +255,18 @@ const printCpu = () => {
     },
     tooltip: {
       trigger: 'axis',
+      position(pos, params, dom, rect, size) {
+        const obj = { top: 60 };
+        obj[['left', 'right'][+(pos[0] < size.viewSize[0] / 2)]] = 5;
+        return obj;
+      },
+      valueFormatter: (value) => `${value.toFixed(3)} %`,
     },
-    grid: { top: '15%' },
+    legend: {
+      top: '8%',
+      data: getCpuDataLegend(),
+    },
+    grid: { top: '28%' },
     toolbox: {
       feature: {
         saveAsImage: { show: true, title: 'Save' },
@@ -90,8 +275,8 @@ const printCpu = () => {
     xAxis: {
       boundaryGap: false,
       type: 'category',
-      data: props.cpu.map((obj) => {
-        return moment(new Date(obj.timestamp * 1000)).format('HH:mm:ss');
+      data: props.sysCpu.map((obj) => {
+        return moment(new Date(obj.cpu.timeStamp)).format('HH:mm:ss');
       }),
     },
     dataZoom: [
@@ -104,17 +289,7 @@ const printCpu = () => {
       },
     ],
     yAxis: [{ name: `${$t('perf.totalCpu')}(%)`, min: 0 }],
-    series: [
-      {
-        type: 'line',
-        data: props.cpu.map((obj) => {
-          return obj.total_load;
-        }),
-        showSymbol: false,
-        areaStyle: {},
-        boundaryGap: false,
-      },
-    ],
+    series: getCpuDataGroup(),
   };
   chart.setOption(option);
 };
@@ -145,7 +320,7 @@ const printMem = () => {
     tooltip: {
       trigger: 'axis',
     },
-    grid: { top: '30%', left: '13%' },
+    grid: { top: '30%', left: '20%' },
     toolbox: {
       feature: {
         saveAsImage: { show: true, title: 'Save' },
@@ -154,19 +329,19 @@ const printMem = () => {
     legend: {
       top: '8%',
       data: [
-        'App Memory',
-        'Free Memory',
-        'Cached Files',
-        'Compressed',
-        'Used Memory',
-        'Wired Memory',
+        'Mem Buffers',
+        'Mem Cached',
+        'Mem Free',
+        'Mem Total',
+        'Swap Free',
+        'Swap Total',
       ],
     },
     xAxis: {
       boundaryGap: false,
       type: 'category',
-      data: props.mem.map((obj) => {
-        return moment(new Date(obj.timestamp * 1000)).format('HH:mm:ss');
+      data: props.sysMem.map((obj) => {
+        return moment(new Date(obj.timeStamp)).format('HH:mm:ss');
       }),
     },
     dataZoom: [
@@ -181,55 +356,55 @@ const printMem = () => {
     yAxis: [{ name: `${$t('perf.memUsage')}(b)`, min: 0 }],
     series: [
       {
-        name: 'App Memory',
+        name: 'Mem Buffers',
         type: 'line',
-        data: props.mem.map((obj) => {
-          return obj.app_memory;
+        data: props.sysMem.map((obj) => {
+          return obj.memBuffers;
         }),
         showSymbol: false,
         boundaryGap: false,
       },
       {
-        name: 'Free Memory',
+        name: 'Mem Cached',
         type: 'line',
-        data: props.mem.map((obj) => {
-          return obj.free_memory;
+        data: props.sysMem.map((obj) => {
+          return obj.memCached;
         }),
         showSymbol: false,
         boundaryGap: false,
       },
       {
-        name: 'Cached Files',
+        name: 'Mem Free',
         type: 'line',
-        data: props.mem.map((obj) => {
-          return obj.cached_files;
+        data: props.sysMem.map((obj) => {
+          return obj.memFree;
         }),
         showSymbol: false,
         boundaryGap: false,
       },
       {
-        name: 'Compressed',
+        name: 'Mem Total',
         type: 'line',
-        data: props.mem.map((obj) => {
-          return obj.compressed;
+        data: props.sysMem.map((obj) => {
+          return obj.memTotal;
         }),
         showSymbol: false,
         boundaryGap: false,
       },
       {
-        name: 'Used Memory',
+        name: 'Swap Free',
         type: 'line',
-        data: props.mem.map((obj) => {
-          return obj.used_memory;
+        data: props.sysMem.map((obj) => {
+          return obj.swapFree;
         }),
         showSymbol: false,
         boundaryGap: false,
       },
       {
-        name: 'Wired Memory',
+        name: 'Swap Total',
         type: 'line',
-        data: props.mem.map((obj) => {
-          return obj.wired_memory;
+        data: props.sysMem.map((obj) => {
+          return obj.swapTotal;
         }),
         showSymbol: false,
         boundaryGap: false,
@@ -238,85 +413,7 @@ const printMem = () => {
   };
   chart.setOption(option);
 };
-const printGpu = () => {
-  let chart = echarts.getInstanceByDom(
-    document.getElementById(
-      `${props.rid}-${props.cid}-${props.did}-` + `sysGpuChart`
-    )
-  );
-  if (chart == null) {
-    chart = echarts.init(
-      document.getElementById(
-        `${props.rid}-${props.cid}-${props.did}-` + `sysGpuChart`
-      )
-    );
-  }
-  chart.resize();
-  const option = {
-    color: ['#5470c6', '#91cc75', '#ee6666'],
-    title: {
-      text: 'System GPU',
-      textStyle: {
-        color: '#606266',
-      },
-      x: 'center',
-      y: 'top',
-    },
-    tooltip: {
-      trigger: 'axis',
-    },
-    grid: { top: '25%' },
-    toolbox: {
-      feature: {
-        saveAsImage: { show: true, title: 'Save' },
-      },
-    },
-    legend: {
-      top: '8%',
-      data: ['Device Utilization', 'Renderer Utilization', 'Tiler Utilization'],
-    },
-    xAxis: {
-      data: props.gpu.map((obj) => {
-        return moment(new Date(obj.timestamp * 1000)).format('HH:mm:ss');
-      }),
-    },
-    dataZoom: [
-      {
-        show: true,
-        realtime: true,
-        start: 30,
-        end: 100,
-        xAxisIndex: [0, 1],
-      },
-    ],
-    yAxis: [{ name: '(%)', min: 0 }],
-    series: [
-      {
-        name: 'Device Utilization',
-        type: 'line',
-        data: props.gpu.map((obj) => {
-          return obj.device_utilization;
-        }),
-      },
-      {
-        name: 'Renderer Utilization',
-        type: 'line',
-        data: props.gpu.map((obj) => {
-          return obj.renderer_utilization;
-        }),
-      },
-      {
-        name: 'Tiler Utilization',
-        type: 'line',
-        data: props.gpu.map((obj) => {
-          return obj.tiler_utilization;
-        }),
-      },
-    ],
-  };
-  chart.setOption(option);
-};
-const printFps = () => {
+const printProcFps = () => {
   let chart = echarts.getInstanceByDom(
     document.getElementById(
       `${props.rid}-${props.cid}-${props.did}-` + `sysFpsChart`
@@ -333,7 +430,7 @@ const printFps = () => {
   const option = {
     color: ['#67C23A'],
     title: {
-      text: 'System FPS',
+      text: 'Process FPS',
       textStyle: {
         color: '#606266',
       },
@@ -350,8 +447,8 @@ const printFps = () => {
       },
     },
     xAxis: {
-      data: props.fps.map((obj) => {
-        return moment(new Date(obj.timestamp * 1000)).format('HH:mm:ss');
+      data: props.procFps.map((obj) => {
+        return moment(new Date(obj.timeStamp)).format('HH:mm:ss');
       }),
     },
     dataZoom: [
@@ -367,7 +464,7 @@ const printFps = () => {
     series: [
       {
         type: 'line',
-        data: props.fps.map((obj) => {
+        data: props.procFps.map((obj) => {
           return obj.fps;
         }),
         showSymbol: false,
@@ -376,24 +473,24 @@ const printFps = () => {
   };
   chart.setOption(option);
 };
-const printDisk = () => {
+const printProcThread = () => {
   let chart = echarts.getInstanceByDom(
     document.getElementById(
-      `${props.rid}-${props.cid}-${props.did}-` + `sysDiskChart`
+      `${props.rid}-${props.cid}-${props.did}-` + `procThreadChart`
     )
   );
   if (chart == null) {
     chart = echarts.init(
       document.getElementById(
-        `${props.rid}-${props.cid}-${props.did}-` + `sysDiskChart`
+        `${props.rid}-${props.cid}-${props.did}-` + `procThreadChart`
       )
     );
   }
   chart.resize();
   const option = {
-    color: ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#409EFF'],
+    color: ['#ee6666'],
     title: {
-      text: 'System Disk',
+      text: 'Process Thread Count',
       textStyle: {
         color: '#606266',
       },
@@ -403,19 +500,15 @@ const printDisk = () => {
     tooltip: {
       trigger: 'axis',
     },
-    grid: { top: '25%', left: '18%' },
+    grid: { top: '15%' },
     toolbox: {
       feature: {
         saveAsImage: { show: true, title: 'Save' },
       },
     },
-    legend: {
-      top: '8%',
-      data: ['Data Read', 'Data Written', 'Reads in', 'Writes Out'],
-    },
     xAxis: {
-      data: props.disk.map((obj) => {
-        return moment(new Date(obj.timestamp * 1000)).format('HH:mm:ss');
+      data: props.procThread.map((obj) => {
+        return moment(new Date(obj.timeStamp)).format('HH:mm:ss');
       }),
     },
     dataZoom: [
@@ -427,37 +520,12 @@ const printDisk = () => {
         xAxisIndex: [0, 1],
       },
     ],
-    yAxis: [{ name: `${$t('perf.byteData')}(b)`, min: 0 }],
+    yAxis: [{ name: 'Count', min: 0 }],
     series: [
       {
-        name: 'Data Read',
         type: 'line',
-        data: props.disk.map((obj) => {
-          return obj.data_read;
-        }),
-        showSymbol: false,
-      },
-      {
-        name: 'Data Written',
-        type: 'line',
-        data: props.disk.map((obj) => {
-          return obj.data_written;
-        }),
-        showSymbol: false,
-      },
-      {
-        name: 'Reads in',
-        type: 'line',
-        data: props.disk.map((obj) => {
-          return obj.reads_in;
-        }),
-        showSymbol: false,
-      },
-      {
-        name: 'Writes Out',
-        type: 'line',
-        data: props.disk.map((obj) => {
-          return obj.writes_out;
+        data: props.procThread.map((obj) => {
+          return obj.threadCount;
         }),
         showSymbol: false,
       },
@@ -492,20 +560,14 @@ const printNetwork = () => {
     tooltip: {
       trigger: 'axis',
     },
-    grid: { top: '25%', left: '18%' },
+    grid: { top: '20%', left: '18%' },
     toolbox: {
       feature: {
         saveAsImage: { show: true, title: 'Save' },
       },
     },
-    legend: {
-      top: '8%',
-      data: ['Bytes In', 'Bytes Out', 'Packets In', 'Packets Out'],
-    },
     xAxis: {
-      data: props.network.map((obj) => {
-        return moment(new Date(obj.timestamp * 1000)).format('HH:mm:ss');
-      }),
+      data: getNetworkTimeStamp(),
     },
     dataZoom: [
       {
@@ -517,40 +579,7 @@ const printNetwork = () => {
       },
     ],
     yAxis: [{ name: `${$t('perf.network')}(b)`, min: 0 }],
-    series: [
-      {
-        name: 'Bytes In',
-        type: 'line',
-        data: props.network.map((obj) => {
-          return obj.bytes_in;
-        }),
-        showSymbol: false,
-      },
-      {
-        name: 'Bytes Out',
-        type: 'line',
-        data: props.network.map((obj) => {
-          return obj.bytes_out;
-        }),
-        showSymbol: false,
-      },
-      {
-        name: 'Packets In',
-        type: 'line',
-        data: props.network.map((obj) => {
-          return obj.packets_in;
-        }),
-        showSymbol: false,
-      },
-      {
-        name: 'Packets Out',
-        type: 'line',
-        data: props.network.map((obj) => {
-          return obj.packets_out;
-        }),
-        showSymbol: false,
-      },
-    ],
+    series: getNetworkDataGroup(),
   };
   chart.setOption(option);
 };
@@ -579,6 +608,7 @@ const printPerfCpu = () => {
     },
     tooltip: {
       trigger: 'axis',
+      valueFormatter: (value) => `${value.toFixed(3)} %`,
     },
     grid: { top: '15%' },
     toolbox: {
@@ -589,8 +619,8 @@ const printPerfCpu = () => {
     xAxis: {
       boundaryGap: false,
       type: 'category',
-      data: props.procPerf.map((obj) => {
-        return moment(new Date(obj.timestamp * 1000)).format('HH:mm:ss');
+      data: props.procCpu.map((obj) => {
+        return moment(new Date(obj.timeStamp)).format('HH:mm:ss');
       }),
     },
     dataZoom: [
@@ -606,10 +636,8 @@ const printPerfCpu = () => {
     series: [
       {
         type: 'line',
-        data: props.procPerf.map((obj) => {
-          if (obj.proc_perf && obj.proc_perf.cpuUsage) {
-            return obj.proc_perf.cpuUsage;
-          }
+        data: props.procCpu.map((obj) => {
+          return obj.cpuUtilization;
         }),
         showSymbol: false,
         areaStyle: {},
@@ -646,26 +674,17 @@ const printPerfMem = () => {
     tooltip: {
       trigger: 'axis',
     },
-    grid: { top: '30%', left: '13%' },
+    grid: { top: '20%', left: '20%' },
     toolbox: {
       feature: {
         saveAsImage: { show: true, title: 'Save' },
       },
     },
-    legend: {
-      top: '8%',
-      data: [
-        'Mem Anon',
-        'Mem Resident Size',
-        'Mem Virtual Size',
-        'Phys Footprint',
-      ],
-    },
     xAxis: {
       boundaryGap: false,
       type: 'category',
-      data: props.procPerf.map((obj) => {
-        return moment(new Date(obj.timestamp * 1000)).format('HH:mm:ss');
+      data: props.procMem.map((obj) => {
+        return moment(new Date(obj.timeStamp)).format('HH:mm:ss');
       }),
     },
     dataZoom: [
@@ -677,48 +696,35 @@ const printPerfMem = () => {
         xAxisIndex: [0, 1],
       },
     ],
+    legend: {
+      top: '8%',
+      data: ['Phy RSS', 'VM RSS', 'Total PSS'],
+    },
     yAxis: [{ name: `${$t('perf.memUsage')}(b)`, min: 0 }],
     series: [
       {
-        name: 'Mem Anon',
+        name: 'Phy RSS',
         type: 'line',
-        data: props.procPerf.map((obj) => {
-          if (obj.proc_perf && obj.proc_perf.memAnon) {
-            return obj.proc_perf.memAnon;
-          }
+        data: props.procMem.map((obj) => {
+          return obj.phyRSS;
         }),
         showSymbol: false,
         boundaryGap: false,
       },
       {
-        name: 'Mem Resident Size',
+        name: 'VM RSS',
         type: 'line',
-        data: props.procPerf.map((obj) => {
-          if (obj.proc_perf && obj.proc_perf.memResidentSize) {
-            return obj.proc_perf.memResidentSize;
-          }
+        data: props.procMem.map((obj) => {
+          return obj.vmRSS;
         }),
         showSymbol: false,
         boundaryGap: false,
       },
       {
-        name: 'Mem Virtual Size',
+        name: 'Total PSS',
         type: 'line',
-        data: props.procPerf.map((obj) => {
-          if (obj.proc_perf && obj.proc_perf.memVirtualSize) {
-            return obj.proc_perf.memVirtualSize;
-          }
-        }),
-        showSymbol: false,
-        boundaryGap: false,
-      },
-      {
-        name: 'Phys Footprint',
-        type: 'line',
-        data: props.procPerf.map((obj) => {
-          if (obj.proc_perf && obj.proc_perf.physFootprint) {
-            return obj.proc_perf.physFootprint;
-          }
+        data: props.procMem.map((obj) => {
+          return obj.totalPSS;
         }),
         showSymbol: false,
         boundaryGap: false,
@@ -729,13 +735,13 @@ const printPerfMem = () => {
 };
 defineExpose({
   printCpu,
+  printSingleCpu,
   printMem,
-  printGpu,
-  printFps,
-  printDisk,
   printNetwork,
   printPerfCpu,
   printPerfMem,
+  printProcFps,
+  printProcThread,
 });
 const switchTab = (e) => {
   if (e.index == 1) {
@@ -752,6 +758,18 @@ const switchTab = (e) => {
         )
       );
       cpuChart.resize();
+      const fpsChart = echarts.getInstanceByDom(
+        document.getElementById(
+          `${props.rid}-${props.cid}-${props.did}-` + `sysFpsChart`
+        )
+      );
+      fpsChart.resize();
+      const threadChart = echarts.getInstanceByDom(
+        document.getElementById(
+          `${props.rid}-${props.cid}-${props.did}-` + `procThreadChart`
+        )
+      );
+      threadChart.resize();
     });
   } else {
     nextTick(() => {
@@ -763,28 +781,16 @@ const switchTab = (e) => {
       memChart.resize();
       const cpuChart = echarts.getInstanceByDom(
         document.getElementById(
-          `${props.rid}-${props.cid}-${props.did}-` + `sysCpuChart`
+          `${props.rid}-${props.cid}-${props.did}-` + `sysSingleCpuChart`
         )
       );
       cpuChart.resize();
-      const gpuChart = echarts.getInstanceByDom(
+      const cpuChart2 = echarts.getInstanceByDom(
         document.getElementById(
-          `${props.rid}-${props.cid}-${props.did}-` + `sysGpuChart`
+          `${props.rid}-${props.cid}-${props.did}-` + `sysCpuChart`
         )
       );
-      gpuChart.resize();
-      const fpsChart = echarts.getInstanceByDom(
-        document.getElementById(
-          `${props.rid}-${props.cid}-${props.did}-` + `sysFpsChart`
-        )
-      );
-      fpsChart.resize();
-      const diskChart = echarts.getInstanceByDom(
-        document.getElementById(
-          `${props.rid}-${props.cid}-${props.did}-` + `sysDiskChart`
-        )
-      );
-      diskChart.resize();
+      cpuChart2.resize();
       const networkChart = echarts.getInstanceByDom(
         document.getElementById(
           `${props.rid}-${props.cid}-${props.did}-` + `sysNetworkChart`
@@ -808,8 +814,19 @@ const switchTab = (e) => {
         <el-col :span="12">
           <el-card style="margin-top: 10px">
             <div
+              :id="rid + '-' + cid + '-' + did + '-' + 'sysSingleCpuChart'"
+              v-loading="sysCpu.length === 0"
+              :element-loading-text="$t('perf.emptyData')"
+              element-loading-spinner="el-icon-box"
+              style="width: 100%; height: 350px"
+            ></div>
+          </el-card>
+        </el-col>
+        <el-col :span="12">
+          <el-card style="margin-top: 10px">
+            <div
               :id="rid + '-' + cid + '-' + did + '-' + 'sysCpuChart'"
-              v-loading="cpu.length === 0"
+              v-loading="sysCpu.length === 0"
               :element-loading-text="$t('perf.emptyData')"
               element-loading-spinner="el-icon-box"
               style="width: 100%; height: 350px"
@@ -820,40 +837,7 @@ const switchTab = (e) => {
           <el-card style="margin-top: 10px">
             <div
               :id="rid + '-' + cid + '-' + did + '-' + 'sysMemChart'"
-              v-loading="mem.length === 0"
-              :element-loading-text="$t('perf.emptyData')"
-              element-loading-spinner="el-icon-box"
-              style="width: 100%; height: 350px"
-            ></div>
-          </el-card>
-        </el-col>
-        <el-col :span="12">
-          <el-card style="margin-top: 10px">
-            <div
-              :id="rid + '-' + cid + '-' + did + '-' + 'sysGpuChart'"
-              v-loading="gpu.length === 0"
-              :element-loading-text="$t('perf.emptyData')"
-              element-loading-spinner="el-icon-box"
-              style="width: 100%; height: 350px"
-            ></div>
-          </el-card>
-        </el-col>
-        <el-col :span="12">
-          <el-card style="margin-top: 10px">
-            <div
-              :id="rid + '-' + cid + '-' + did + '-' + 'sysFpsChart'"
-              v-loading="fps.length === 0"
-              :element-loading-text="$t('perf.emptyData')"
-              element-loading-spinner="el-icon-box"
-              style="width: 100%; height: 350px"
-            ></div>
-          </el-card>
-        </el-col>
-        <el-col :span="12">
-          <el-card style="margin-top: 10px">
-            <div
-              :id="rid + '-' + cid + '-' + did + '-' + 'sysDiskChart'"
-              v-loading="disk.length === 0"
+              v-loading="sysMem.length === 0"
               :element-loading-text="$t('perf.emptyData')"
               element-loading-spinner="el-icon-box"
               style="width: 100%; height: 350px"
@@ -864,7 +848,7 @@ const switchTab = (e) => {
           <el-card style="margin-top: 10px">
             <div
               :id="rid + '-' + cid + '-' + did + '-' + 'sysNetworkChart'"
-              v-loading="network.length === 0"
+              v-loading="sysNetwork.length === 0"
               :element-loading-text="$t('perf.emptyData')"
               element-loading-spinner="el-icon-box"
               style="width: 100%; height: 350px"
@@ -874,24 +858,52 @@ const switchTab = (e) => {
       </el-row>
     </el-tab-pane>
     <el-tab-pane label="Process PerfMon">
-      <el-card style="margin-top: 10px">
-        <div
-          :id="rid + '-' + cid + '-' + did + '-' + 'perfCpuChart'"
-          v-loading="procPerf.length === 0"
-          :element-loading-text="$t('perf.emptyData')"
-          element-loading-spinner="el-icon-box"
-          style="width: 100%; height: 350px"
-        ></div>
-      </el-card>
-      <el-card style="margin-top: 10px">
-        <div
-          :id="rid + '-' + cid + '-' + did + '-' + 'perfMemChart'"
-          v-loading="procPerf.length === 0"
-          :element-loading-text="$t('perf.emptyData')"
-          element-loading-spinner="el-icon-box"
-          style="width: 100%; height: 350px"
-        ></div>
-      </el-card>
+      <el-row :gutter="10">
+        <el-col :span="12">
+          <el-card style="margin-top: 10px">
+            <div
+              :id="rid + '-' + cid + '-' + did + '-' + 'perfCpuChart'"
+              v-loading="procCpu.length === 0"
+              :element-loading-text="$t('perf.emptyData')"
+              element-loading-spinner="el-icon-box"
+              style="width: 100%; height: 350px"
+            ></div>
+          </el-card>
+        </el-col>
+        <el-col :span="12">
+          <el-card style="margin-top: 10px">
+            <div
+              :id="rid + '-' + cid + '-' + did + '-' + 'perfMemChart'"
+              v-loading="procMem.length === 0"
+              :element-loading-text="$t('perf.emptyData')"
+              element-loading-spinner="el-icon-box"
+              style="width: 100%; height: 350px"
+            ></div>
+          </el-card>
+        </el-col>
+        <el-col :span="12">
+          <el-card style="margin-top: 10px">
+            <div
+              :id="rid + '-' + cid + '-' + did + '-' + 'sysFpsChart'"
+              v-loading="procFps.length === 0"
+              :element-loading-text="$t('perf.emptyData')"
+              element-loading-spinner="el-icon-box"
+              style="width: 100%; height: 350px"
+            ></div>
+          </el-card>
+        </el-col>
+        <el-col :span="12">
+          <el-card style="margin-top: 10px">
+            <div
+              :id="rid + '-' + cid + '-' + did + '-' + 'procThreadChart'"
+              v-loading="procThread.length === 0"
+              :element-loading-text="$t('perf.emptyData')"
+              element-loading-spinner="el-icon-box"
+              style="width: 100%; height: 350px"
+            ></div>
+          </el-card>
+        </el-col>
+      </el-row>
     </el-tab-pane>
   </el-tabs>
 </template>

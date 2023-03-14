@@ -15,6 +15,7 @@ const elementId = ref(0);
 const deleteId = ref(0);
 const pageData = ref({});
 const pageSize = ref(15);
+const pageCurrNum = ref(1);
 const name = ref('');
 const value = ref('');
 const types = ref([]);
@@ -45,6 +46,8 @@ const flush = () => {
 };
 const moduleIds = ref([]);
 const getElementList = (pageNum, pSize) => {
+  pageSize.value = pSize || pageSize.value;
+  pageCurrNum.value = pageNum || pageCurrNum.value;
   axios
     .get('/controller/elements/list', {
       params: {
@@ -53,8 +56,8 @@ const getElementList = (pageNum, pSize) => {
         moduleIds: moduleIds.value.length > 0 ? moduleIds.value : undefined,
         name: name.value,
         value: value.value,
-        page: pageNum || 1,
-        pageSize: pSize || pageSize.value,
+        page: pageCurrNum.value,
+        pageSize: pageSize.value,
       },
     })
     .then((resp) => {
@@ -201,9 +204,9 @@ onMounted(() => {
       </el-table-column>
     </el-table>
     <div style="text-align: center; margin-top: 20px">
-      <el-button size="small" type="danger" @click="deleteReal(deleteId)"
-        >{{ $t('elements.sureDelete') }})</el-button
-      >
+      <el-button size="small" type="danger" @click="deleteReal(deleteId)">{{
+        $t('elements.sureDelete')
+      }}</el-button>
     </div>
   </el-dialog>
   <el-button size="mini" round type="primary" @click="open">{{
@@ -215,12 +218,7 @@ onMounted(() => {
     border
     @filter-change="filter"
   >
-    <el-table-column
-      :label="$t('elements.controlId')"
-      width="90"
-      align="center"
-      prop="id"
-    >
+    <el-table-column label="id" width="90" align="center" prop="id">
     </el-table-column>
 
     <el-table-column
@@ -263,12 +261,15 @@ onMounted(() => {
       :filters="[
         { text: 'id（resource-id）', value: 'id' },
         { text: 'xpath', value: 'xpath' },
+        { text: 'accessibilityId', value: 'accessibilityId' },
+        { text: 'classChain', value: 'classChain' },
+        { text: 'POCO', value: 'poco' },
         { text: 'name', value: 'name' },
         { text: 'cssSelector', value: 'cssSelector' },
         { text: $t('elements.coordinate'), value: 'point' },
         { text: $t('elements.picture'), value: 'image' },
         { text: 'nsPredicate', value: 'nsPredicate' },
-        { text: 'androidUIAutomator', value: 'androidUIAutomator' },
+        { text: 'uiautomator', value: 'androidUIAutomator' },
         { text: 'linkText', value: 'linkText' },
         { text: 'className', value: 'className' },
         { text: 'tagName', value: 'tagName' },
@@ -319,7 +320,7 @@ onMounted(() => {
       </template>
     </el-table-column>
 
-    <el-table-column :label="$t('common.operate')" width="210" align="center">
+    <el-table-column :label="$t('common.operate')" width="230" align="center">
       <template #default="scope">
         <el-button
           type="primary"

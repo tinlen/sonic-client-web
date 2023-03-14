@@ -81,9 +81,15 @@ $http.interceptors.response.use(
     return response.data;
   },
   (err) => {
-    ElMessage.error({
-      message: '系统出错了！',
-    });
+    if (err.response.status === 503) {
+      ElMessage.info({
+        message: $tc('dialog.ready'),
+      });
+    } else {
+      ElMessage.error({
+        message: $tc('dialog.error'),
+      });
+    }
     return Promise.reject(err);
   }
 );

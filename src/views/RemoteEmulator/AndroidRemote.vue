@@ -36,7 +36,6 @@ import StepLog from '@/components/StepLog.vue';
 import ElementUpdate from '@/components/ElementUpdate.vue';
 import Pageable from '@/components/Pageable.vue';
 import defaultLogo from '@/assets/logo.png';
-import moment from 'moment';
 import {
   VideoPause,
   Refresh,
@@ -78,8 +77,10 @@ import wifiLogo from '@/assets/img/wifi.png';
 import RenderDeviceName from '../../components/RenderDeviceName.vue';
 import Scrcpy from './Scrcpy';
 import PocoPane from '../../components/PocoPane.vue';
+import AndroidPerf from '../../components/AndroidPerf.vue';
 
 const pocoPaneRef = ref(null);
+const androidPerfRef = ref(null);
 const { t: $t } = useI18n();
 
 const { toClipboard } = useClipboard();
@@ -106,6 +107,8 @@ const screenUrls = ref([]);
 const uploadUrl = ref('');
 const text = ref({ content: '' });
 const isMultiWindows = ref(false);
+const isIgnore = ref(true);
+const isVisible = ref(false);
 let imgWidth = 0;
 let imgHeight = 0;
 // 旋转状态 // 0 90 180 270
@@ -174,129 +177,6 @@ const element = ref({
   eleValue: '',
   projectId: 0,
 });
-const jenkinsSearchKeywork = ref('');
-const jenkinsTask = ref([]);
-const jenkinsSearchChange = (value) => {
-  getJenkinsTask();
-};
-const dateFormat = (row, column) => {
-  return moment(new Date(row.timestamp)).format('YYYY-MM-DD HH:mm');
-};
-const stringToASCII = (data) => {
-  const newList = [];
-  for (let i = 0; i < data.length; i++) {
-    const c = data[i];
-    if (c) {
-      newList.push(`&#${c.charCodeAt()};`);
-    }
-  }
-  const newStr = newList.join('');
-  console.log(newStr);
-  return newStr;
-};
-// jenkins 构建历史获取
-const getJenkinsTask = async () => {
-  // 构建历史获取，这里需要Authorization认证，目前是写死，后期接入ldap登录后，可动态配置
-  // Authorization：Basic cWlucWlhbmx1bjpRaW5AOTExMTAz，base64Encode(username.小写:password)
-  const authorization = store.state.userInfo.password;
-  const jenkinsUrl = store.state.userInfo.jenkinsUrl;
-  if (jenkinsUrl === 'undefined' || jenkinsUrl == null || jenkinsUrl === '') {
-    return;
-  }
-  const api = `${jenkinsUrl}/api/json?tree=jobs[name,builds[fullDisplayName,displayName,url,building,timestamp,actions[parameters[name,value],causes[userName],lastBuiltRevision[branch[name]]]]]`;
-  const response = await fetch(api, {
-    method: 'GET',
-    headers: { Authorization: `Basic ${authorization}` },
-  });
-  if (response.status === 200) {
-    const json = await response.json();
-    const jobs = json.jobs;
-    const list = [];
-    jobs.forEach(function(item, index) {
-      if (item.builds && item.builds.length) {
-        const task = {};
-        const firstBuild = item.builds[0];
-        if (firstBuild.actions && firstBuild.actions.length) {
-          const actions = firstBuild.actions;
-          actions.forEach(function(action) {
-            if (action.causes && action.causes.length) {
-              const userName = action.causes[0].userName;
-              task.userName = userName;
-            }
-            if (action.parameters && action.parameters.length) {
-              task.parameter = action.parameters.map(param => {
-                return {
-                  name: param.name,
-                  value: param.value,
-                };
-              });
-            }
-          });
-        }
-        task.building = firstBuild.building;
-        task.displayName = firstBuild.displayName;
-        task.fullDisplayName = firstBuild.fullDisplayName;
-        task.timestamp = firstBuild.timestamp;
-        task.url = firstBuild.url.replace("jenkins/", "");
-        const kw = jenkinsSearchKeywork.value;
-        console.log(kw);
-        if (jenkinsSearchKeywork.value === '') {
-          list.push(task);
-        } else {
-          const kw = jenkinsSearchKeywork.value;
-          if (`${task.fullDisplayName}`.includes(kw) || `${task.userName}`.includes(kw)) {
-            list.push(task);
-          }
-        }
-        
-      }
-    });
-    console.log(list.length);
-    jenkinsTask.value = list;
-  }
-};
-// 发送到jenkins安装
-const appInstallByJenkins = (value) => {
-  const authorization = store.state.userInfo.password;
-  const jenkinsUrl = value.replace('/jenkins', '');
-  // 1.获取构建结果信息
-  fetch(`${jenkinsUrl}api/json`, {
-    method: 'GET',
-    headers: { Authorization: `Basic ${authorization}` },
-  }).then(res => {
-    res.json().then(data => {
-      console.log('构建结果', data.building);
-      if (data.building) {
-        console.log('构建中...');
-      } else {
-        // 2.解析apk下载
-        const artifacts = data.artifacts;
-        if (artifacts && artifacts.length) {
-          const appUrl = `${jenkinsUrl}artifact/${artifacts[0].relativePath}`;
-          if (appUrl.endsWith('.apk')) {
-            const newUrl = `${appUrl}?${authorization}`;
-            console.log(newUrl);
-            // 转成ascii ，否则url中存在特殊符号（）之类的，安卓页面会接收不到
-            const newAppUrl = stringToASCII(newUrl);
-            // 3.将apk下载链接，jenkins认证密码Authorization，发送到辅助app的下载页面接收，在辅助app执行下载操作并安装
-            const installCmd = `am start -n com.flutter.jenkins/com.flutter.jenkins.flutter_jenkins.DownloadActivity -d '${newAppUrl}'`
-            console.log('安装包', installCmd);
-            terminalWebsocket.send(
-              JSON.stringify({
-                type: 'command',
-                detail: installCmd,
-              })
-            );
-          } else {
-            ElMessage.error({
-              message: 'ios安装暂未支持',
-            });
-          }
-        }
-      }
-    });
-  });
-};
 const computedCenter = (b1, b2) => {
   const x1 = b1.substring(0, b1.indexOf(','));
   const y1 = b1.substring(b1.indexOf(',') + 1);
@@ -310,7 +190,7 @@ const switchTabs = (e) => {
   if (e.props.name === 'proxy') {
     getWifiList();
   }
-  if (e.props.name === 'apps') {
+  if (e.props.name === 'apps' || e.props.name === 'perfmon') {
     if (appList.value.length === 0) {
       refreshAppList();
     }
@@ -323,11 +203,21 @@ const switchTabs = (e) => {
       getWebViewForward();
     }
   }
-  if (e.props.name === 'Jenkins') {
-    if (jenkinsTask.value.length === 0) {
-      getJenkinsTask();
-    }
-  }
+};
+const startPerfmon = (bundleId) => {
+  websocket.send(
+    JSON.stringify({
+      type: 'startPerfmon',
+      bundleId,
+    })
+  );
+};
+const stopPerfmon = () => {
+  websocket.send(
+    JSON.stringify({
+      type: 'stopPerfmon',
+    })
+  );
 };
 const img = import.meta.globEager('../../assets/img/*');
 let websocket = null;
@@ -719,18 +609,10 @@ const terminalWebsocketOnmessage = (message) => {
       cmdOutPut.value.push($t('androidRemoteTS.connection'));
       break;
     case 'terResp':
-      const detail = JSON.parse(message.data).detail;
-      cmdOutPut.value.push(detail);
+      cmdOutPut.value.push(JSON.parse(message.data).detail);
       nextTick(() => {
         terScroll.value.wrap.scrollTop = terScroll.value.wrap.scrollHeight;
       });
-      // 获取粘贴板
-      if (clipperClick.value) {
-        const clipperData = getClipperData(detail);
-        if (clipperData && clipperData !== '') {
-          copy(clipperData);
-        }
-      }
       break;
     case 'terDone':
       cmdIsDone.value = true;
@@ -811,6 +693,9 @@ const screenWebsocketOnmessage = (message) => {
 };
 const websocketOnmessage = (message) => {
   switch (JSON.parse(message.data).msg) {
+    case 'perfDetail':
+      androidPerfRef.value.setData(JSON.parse(message.data).detail);
+      break;
     case 'poco': {
       pocoLoading.value = false;
       const { result } = JSON.parse(message.data);
@@ -918,14 +803,16 @@ const websocketOnmessage = (message) => {
       break;
     }
     case 'openDriver': {
-      ElMessage({
-        type: JSON.parse(message.data).status,
-        message: JSON.parse(message.data).detail,
-      });
+      let msg = $t('androidRemoteTS.driverStatus.fail');
       driverLoading.value = false;
       if (JSON.parse(message.data).status === 'success') {
         isDriverFinish.value = true;
+        msg = $t('androidRemoteTS.driverStatus.success');
       }
+      ElMessage({
+        type: JSON.parse(message.data).status,
+        message: msg,
+      });
       break;
     }
     case 'step': {
@@ -955,7 +842,7 @@ const websocketOnmessage = (message) => {
         imgElementUrl.value = JSON.parse(message.data).img;
         dialogImgElement.value = true;
       } else {
-        ElMessage.error(JSON.parse(message.data).errMsg);
+        ElMessage.error($t('IOSRemote.eleScreen.err'));
       }
       elementScreenLoading.value = false;
       break;
@@ -1009,6 +896,18 @@ const openDriver = () => {
       detail: 'openDriver',
     })
   );
+};
+const closeDriver = () => {
+  isDriverFinish.value = false;
+  websocket.send(
+    JSON.stringify({
+      type: 'debug',
+      detail: 'closeDriver',
+    })
+  );
+  ElMessage.success({
+    message: $t('androidRemoteTS.code.closeDriverMessage'),
+  });
 };
 const getCurLocation = () => {
   let x;
@@ -1600,59 +1499,6 @@ const stopKeyboard = () => {
     })
   );
 };
-const clipperClick = ref(false);
-const closeClipper =() =>{
-  console.log("3.关闭Clipper");
-  const closeClipperCmd = 'am force-stop ca.zgrs.clipper';
-  terminalWebsocket.send(
-              JSON.stringify({
-                type: 'command',
-                detail: closeClipperCmd,
-              })
-            );
-  clipperClick.value = false;
-}
-const clipperGet = () => {
-  console.log("2.获取Clipper");
-  clipperClick.value = true;
-  const getClipperCmd = 'am broadcast -a clipper.get';
-  terminalWebsocket.send(
-              JSON.stringify({
-                type: 'command',
-                detail: getClipperCmd,
-              })
-            );
-  setTimeout(closeClipper, 500);
-}
-
-// 解析粘贴内容
-const getClipperData = (value) => {
-  console.log("解析粘贴内容");
-  console.log(value);
-  const indexStr = 'result=-1, data=';
-  const index = value.indexOf(indexStr);
-  console.log(index);
-  if (index > 0) {
-    const len = indexStr.length;
-    const data = value.substring(index + len);
-    console.log(data);
-    return data;
-  }
-  return '';
-}
-
-const getClipper = () => {
-  console.log("1.打开Clipper");
-  const startClipperCmd = 'am start -n ca.zgrs.clipper/ca.zgrs.clipper.Main';
-  terminalWebsocket.send(
-              JSON.stringify({
-                type: 'command',
-                detail: startClipperCmd,
-              })
-            );
-  setTimeout(clipperGet, 800);
-};
-
 const install = (apk) => {
   if (apk.length > 0) {
     websocket.send(
@@ -1675,6 +1521,8 @@ const getElement = () => {
       type: 'debug',
       detail: 'tree',
       isMulti: isMultiWindows.value,
+      isIgnore: isIgnore.value,
+      isVisible: isVisible.value,
     })
   );
 };
@@ -1696,12 +1544,6 @@ const getWebViewForward = () => {
       type: 'forwardView',
     })
   );
-};
-const copyWebUrl = (value) => {
-  toClipboard(value);
-  ElMessage.success({
-    message: '复制成功！',
-  });
 };
 const close = () => {
   if (websocket !== null) {
@@ -1812,7 +1654,28 @@ onMounted(() => {
   }
   getDeviceById(route.params.deviceId);
   store.commit('autoChangeCollapse');
+  getRemoteTimeout();
 });
+const remoteTimeout = ref(0);
+const getRemoteTimeout = () => {
+  axios.get('/controller/confList/getRemoteTimeout').then((resp) => {
+    remoteTimeout.value = resp.data * 60;
+    setInterval(() => {
+      remoteTimeout.value -= 1;
+    }, 1000);
+  });
+};
+function parseTimeout(time) {
+  let h = parseInt((time / 60 / 60) % 24);
+  h = h < 10 ? `0${h}` : h;
+  let m = parseInt((time / 60) % 60);
+  m = m < 10 ? `0${m}` : m;
+  let s = parseInt(time % 60);
+  s = s < 10 ? `0${s}` : s;
+  return `${h} ${$t('common.hour')} ${m} ${$t('common.min')} ${s} ${$t(
+    'common.sec'
+  )} `;
+}
 </script>
 
 <template>
@@ -1871,7 +1734,13 @@ onMounted(() => {
     />
   </el-dialog>
   <el-page-header
-    :content="$t('routes.remoteControl')"
+    :content="
+      $t('routes.remoteControl') +
+      ' - ' +
+      $t('common.at') +
+      parseTimeout(remoteTimeout) +
+      $t('common.release')
+    "
     style="margin-top: 15px; margin-left: 20px"
     @back="close"
   />
@@ -2572,18 +2441,13 @@ onMounted(() => {
                   </el-alert>
                   <div style="text-align: center; margin-top: 12px">
                     <el-button size="mini" type="primary" @click="sendText"
-                      >{{ $t('androidRemoteTS.code.send') }}
+                      >{{ $t('androidRemoteTS.code.clear') }}
                     </el-button>
                     <el-button size="mini" type="primary" @click="startKeyboard"
                       >{{ $t('androidRemoteTS.code.startKeyboard') }}
                     </el-button>
-                  </div>
-                  <div style="text-align: center; margin-top: 12px">
                     <el-button size="mini" type="primary" @click="stopKeyboard"
                       >{{ $t('androidRemoteTS.code.stopKeyboard') }}
-                    </el-button>
-                    <el-button size="mini" type="primary" @click="getClipper"
-                      >获取粘贴板
                     </el-button>
                   </div>
                 </el-card>
@@ -2636,6 +2500,13 @@ onMounted(() => {
                         :loading="driverLoading"
                         @click="openDriver"
                         >{{ $t('androidRemoteTS.code.UIAutomator2ServerInit') }}
+                      </el-button>
+                      <el-button
+                        size="mini"
+                        type="danger"
+                        :disabled="!isDriverFinish"
+                        @click="closeDriver"
+                        >{{ $t('androidRemoteTS.code.closeDriver') }}
                       </el-button>
                       <div style="margin-top: 8px">
                         Status:
@@ -2842,7 +2713,7 @@ onMounted(() => {
             </el-row>
             <el-card shadow="hover" style="margin-top: 15px">
               <el-table :data="currAppListPageData" border>
-                <el-table-column width="90" header-align="center">
+                <el-table-column width="100" header-align="center">
                   <template #header>
                     <el-button size="mini" @click="refreshAppList"
                       >{{ $t('androidRemoteTS.code.refresh') }}
@@ -2976,7 +2847,7 @@ onMounted(() => {
               v-if="proxyWebPort !== 0"
               allow="clipboard-read;clipboard-write"
               :style="
-                'border:1px solid #C0C4CC;;width: 100%;height: ' +
+                'border:1px solid #C0C4CC;width: 100%;height: ' +
                 iFrameHeight +
                 'px;margin-top:15px'
               "
@@ -3407,8 +3278,46 @@ onMounted(() => {
                   >
                     <div>
                       <el-select v-model="isMultiWindows" size="mini">
-                        <el-option label="单窗口模式" :value="false" />
-                        <el-option label="多窗口模式" :value="true" />
+                        <el-option
+                          :label="$t('androidRemoteTS.element.windows.single')"
+                          :value="false"
+                        />
+                        <el-option
+                          :label="$t('androidRemoteTS.element.windows.multi')"
+                          :value="true"
+                        />
+                      </el-select>
+                      <el-select
+                        v-model="isVisible"
+                        style="margin-left: 10px"
+                        size="mini"
+                      >
+                        <el-option
+                          :label="$t('androidRemoteTS.element.visible.hid')"
+                          :value="false"
+                        />
+                        <el-option
+                          :label="$t('androidRemoteTS.element.visible.show')"
+                          :value="true"
+                        />
+                      </el-select>
+                      <el-select
+                        v-model="isIgnore"
+                        style="margin-left: 10px"
+                        size="mini"
+                      >
+                        <el-option
+                          :label="
+                            $t('androidRemoteTS.element.unimportant.ignore')
+                          "
+                          :value="true"
+                        />
+                        <el-option
+                          :label="
+                            $t('androidRemoteTS.element.unimportant.show')
+                          "
+                          :value="false"
+                        />
                       </el-select>
                       <el-button
                         style="margin-left: 10px"
@@ -3774,7 +3683,9 @@ onMounted(() => {
                                 <span>{{ elementDetail['index'] }}</span>
                               </el-form-item>
                               <el-form-item
-                                :label="$t('androidRemoteTS.code.label.one')"
+                                :label="
+                                  $t('androidRemoteTS.code.label.checkable')
+                                "
                               >
                                 <el-switch
                                   :value="
@@ -3785,7 +3696,9 @@ onMounted(() => {
                                 </el-switch>
                               </el-form-item>
                               <el-form-item
-                                :label="$t('androidRemoteTS.code.label.two')"
+                                :label="
+                                  $t('androidRemoteTS.code.label.checked')
+                                "
                               >
                                 <el-switch
                                   :value="JSON.parse(elementDetail['checked'])"
@@ -3794,7 +3707,9 @@ onMounted(() => {
                                 </el-switch>
                               </el-form-item>
                               <el-form-item
-                                :label="$t('androidRemoteTS.code.label.three')"
+                                :label="
+                                  $t('androidRemoteTS.code.label.clickable')
+                                "
                               >
                                 <el-switch
                                   :value="
@@ -3805,7 +3720,9 @@ onMounted(() => {
                                 </el-switch>
                               </el-form-item>
                               <el-form-item
-                                :label="$t('androidRemoteTS.code.label.four')"
+                                :label="
+                                  $t('androidRemoteTS.code.label.selected')
+                                "
                               >
                                 <el-switch
                                   :value="JSON.parse(elementDetail['selected'])"
@@ -3814,7 +3731,9 @@ onMounted(() => {
                                 </el-switch>
                               </el-form-item>
                               <el-form-item
-                                :label="$t('androidRemoteTS.code.label.five')"
+                                :label="
+                                  $t('androidRemoteTS.code.label.displayed')
+                                "
                               >
                                 <el-switch
                                   :value="
@@ -3825,7 +3744,9 @@ onMounted(() => {
                                 </el-switch>
                               </el-form-item>
                               <el-form-item
-                                :label="$t('androidRemoteTS.code.label.six')"
+                                :label="
+                                  $t('androidRemoteTS.code.label.enabled')
+                                "
                               >
                                 <el-switch
                                   :value="JSON.parse(elementDetail['enabled'])"
@@ -3834,7 +3755,9 @@ onMounted(() => {
                                 </el-switch>
                               </el-form-item>
                               <el-form-item
-                                :label="$t('androidRemoteTS.code.label.seven')"
+                                :label="
+                                  $t('androidRemoteTS.code.label.focusable')
+                                "
                               >
                                 <el-switch
                                   :value="
@@ -3845,7 +3768,9 @@ onMounted(() => {
                                 </el-switch>
                               </el-form-item>
                               <el-form-item
-                                :label="$t('androidRemoteTS.code.label.eight')"
+                                :label="
+                                  $t('androidRemoteTS.code.label.focused')
+                                "
                               >
                                 <el-switch
                                   :value="JSON.parse(elementDetail['focused'])"
@@ -3854,7 +3779,9 @@ onMounted(() => {
                                 </el-switch>
                               </el-form-item>
                               <el-form-item
-                                :label="$t('androidRemoteTS.code.label.nine')"
+                                :label="
+                                  $t('androidRemoteTS.code.label.longClickable')
+                                "
                               >
                                 <el-switch
                                   :value="
@@ -3865,7 +3792,9 @@ onMounted(() => {
                                 </el-switch>
                               </el-form-item>
                               <el-form-item
-                                :label="$t('androidRemoteTS.code.label.ten')"
+                                :label="
+                                  $t('androidRemoteTS.code.label.scrollable')
+                                "
                               >
                                 <el-switch
                                   :value="
@@ -4019,18 +3948,10 @@ onMounted(() => {
                           }}
                         </div>
                       </div>
-                      <div>
-                        <el-button
-                          type="primary"
-                          size="mini"
-                          @click="copyWebUrl(w.url)"
-                          >
-                        {{ $t('androidRemoteTS.code.webView.copyUrl') }}
-                        </el-button>
-                        <el-button
-                          type="primary"
-                          size="mini"
-                          @click="
+                      <el-button
+                        type="primary"
+                        size="mini"
+                        @click="
                           tabWebView(
                             web.port,
                             w.id,
@@ -4038,11 +3959,10 @@ onMounted(() => {
                               ? w.title
                               : $t('androidRemoteTS.code.webView.Untitled')
                           )
-                          "
-                          >
+                        "
+                      >
                         {{ $t('androidRemoteTS.code.webView.nowDebug') }}
-                        </el-button>
-                      </div>
+                      </el-button>
                     </div>
                   </el-card>
                 </el-card>
@@ -4079,75 +3999,13 @@ onMounted(() => {
               </iframe>
             </div>
           </el-tab-pane>
-          <el-tab-pane
-            label="Jenkins"
-            name="Jenkins">
-            <el-button
-              type="primary"
-              size="mini"
-              @click="getJenkinsTask">
-                刷新
-            </el-button>
-            <el-input
-              style="margin-top: 10px"
-              v-model="jenkinsSearchKeywork"
-              clearable
-              @change="jenkinsSearchChange"
-              placeholder="请输入任务名、操作人按enter进行过滤" />
-            <el-table
-              :data="jenkinsTask"
-              style="width: 100%"
-              :default-sort="{ prop: 'timestamp', order: 'descending' }"
-            >
-              <el-table-column
-                prop="fullDisplayName"
-                label="任务"
-                sortable>
-                <template #default="scope">
-                  <a :href="scope.row.url" target="_blank">{{scope.row.fullDisplayName}}</a>
-                </template>
-              </el-table-column>
-              <el-table-column
-                prop="timestamp"
-                label="构建时间"
-                min-width="25%"
-                :formatter="dateFormat"
-                sortable/>
-              <el-table-column
-                prop="userName"
-                label="操作人"
-                min-width="18%"
-                sortable/>
-              <el-table-column
-                prop=""
-                label="构建参数"
-                min-width="15%">
-                <template #default="scope">
-                  <el-popover placement="left" :width="300" trigger="hover">
-                    <template #reference>
-                      <span size="mini" style="cursor: pointer">查看</span>
-                    </template>
-                    <el-table :data="scope.row.parameter">
-                      <el-table-column width="150" property="name" label="name" />
-                      <el-table-column width="150" property="value" label="value" />
-                    </el-table>
-                   </el-popover>
-                </template>
-              </el-table-column>
-              <el-table-column
-                prop="building"
-                width="100"
-                label="安装">
-                <template #default="scope">
-                  <el-button
-                    type="primary"
-                    @click="appInstallByJenkins(scope.row.url)"
-                    size="mini">
-                    {{scope.row.building ? '构建中' : '安装'}}
-                  </el-button>
-                </template>
-              </el-table-column>
-            </el-table>
+          <el-tab-pane :label="$t('IOSRemote.perfmon')" name="perfmon">
+            <android-perf
+              ref="androidPerfRef"
+              :app-list="appList"
+              @start-perfmon="startPerfmon"
+              @stop-perfmon="stopPerfmon"
+            />
           </el-tab-pane>
         </el-tabs>
       </el-col>

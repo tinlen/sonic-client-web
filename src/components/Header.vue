@@ -31,11 +31,11 @@ const copy = (value) => {
   try {
     toClipboard(value);
     ElMessage.success({
-      message: '复制成功！',
+      message: $t('dialog.copy.success'),
     });
   } catch (e) {
     ElMessage.error({
-      message: '复制失败！',
+      message: $t('dialog.copy.fail'),
     });
   }
 };
@@ -333,17 +333,17 @@ const changeLocaleHandler = function (val) {
               </template>
               <el-menu-item
                 index="2-1"
-                @click="goToUrl('https://sonic-cloud.gitee.io/#/Home')"
+                @click="goToUrl('https://sonic-cloud.cn/home')"
                 >{{ $t('layout.officialWebSite') }}
               </el-menu-item>
               <el-menu-item
                 index="2-0"
-                @click="goToUrl('https://sonic-cloud.gitee.io/#/Document')"
-                >使用文档
+                @click="goToUrl('https://sonic-cloud.cn/document')"
+                >{{ $t('layout.document') }}
               </el-menu-item>
               <el-menu-item
                 index="2-2"
-                @click="goToUrl('https://sonic-cloud.gitee.io/#/Version')"
+                @click="goToUrl('https://sonic-cloud.cn/version')"
                 >{{ $t('layout.versionUpdateRecord') }}
                 <el-badge value="New" style="margin: 0 0 5px 5px"></el-badge>
               </el-menu-item>
@@ -509,10 +509,10 @@ const changeLocaleHandler = function (val) {
         v-if="dialogToken"
         label-position="left"
         class="demo-table-expand"
-        label-width="70px"
+        label-width="90px"
         size="small"
       >
-        <el-form-item label="过期天数">
+        <el-form-item :label="$t('token.day')">
           <el-input-number
             v-model="day"
             size="small"
@@ -520,15 +520,15 @@ const changeLocaleHandler = function (val) {
             :max="999"
           ></el-input-number>
         </el-form-item>
-        <el-form-item label="生成结果">
+        <el-form-item :label="$t('token.result')">
           <div
             v-if="tokenNew !== ''"
             style="cursor: pointer"
             @click="copy(tokenNew)"
           >
-            {{ tokenNew.substring(0, 15) + '*******(请点击复制)' }}
+            {{ tokenNew.substring(0, 15) + '*******' + $t('token.click') }}
           </div>
-          <div v-else>点击确定后在此处复制</div>
+          <div v-else>{{ $t('token.copy') }}</div>
         </el-form-item>
       </el-form>
       <div style="text-align: center">

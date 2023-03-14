@@ -710,7 +710,7 @@ const websocketOnmessage = (message) => {
       proxyWebPort.value = JSON.parse(message.data).webPort;
       proxyConnPort.value = JSON.parse(message.data).port;
       nextTick(() => {
-        iFrameHeight.value = document.body.clientHeight - 180;
+        iFrameHeight.value = document.body.clientHeight - 150;
       });
       break;
     }
@@ -748,11 +748,9 @@ const websocketOnmessage = (message) => {
       break;
     }
     case 'openDriver': {
-      ElMessage({
-        type: JSON.parse(message.data).status,
-        message: JSON.parse(message.data).detail,
-      });
+      let msg = $t('IOSRemote.driverStatus.fail');
       if (JSON.parse(message.data).status === 'success') {
+        msg = $t('IOSRemote.driverStatus.success');
         imgWidth = JSON.parse(message.data).width;
         imgHeight = JSON.parse(message.data).height;
         isDriverFinish.value = true;
@@ -763,6 +761,10 @@ const websocketOnmessage = (message) => {
           JSON.parse(message.data).height
         );
       }
+      ElMessage({
+        type: JSON.parse(message.data).status,
+        message: msg,
+      });
       break;
     }
     case 'step': {
@@ -784,7 +786,7 @@ const websocketOnmessage = (message) => {
         imgElementUrl.value = JSON.parse(message.data).img;
         dialogImgElement.value = true;
       } else {
-        ElMessage.error(JSON.parse(message.data).errMsg);
+        ElMessage.error($t('IOSRemote.eleScreen.err'));
       }
       elementScreenLoading.value = false;
       break;
@@ -1220,7 +1222,28 @@ onMounted(() => {
   }
   getDeviceById(route.params.deviceId);
   store.commit('autoChangeCollapse');
+  getRemoteTimeout();
 });
+const remoteTimeout = ref(0);
+const getRemoteTimeout = () => {
+  axios.get('/controller/confList/getRemoteTimeout').then((resp) => {
+    remoteTimeout.value = resp.data * 60;
+    setInterval(() => {
+      remoteTimeout.value -= 1;
+    }, 1000);
+  });
+};
+function parseTimeout(time) {
+  let h = parseInt((time / 60 / 60) % 24);
+  h = h < 10 ? `0${h}` : h;
+  let m = parseInt((time / 60) % 60);
+  m = m < 10 ? `0${m}` : m;
+  let s = parseInt(time % 60);
+  s = s < 10 ? `0${s}` : s;
+  return `${h} ${$t('common.hour')} ${m} ${$t('common.min')} ${s} ${$t(
+    'common.sec'
+  )} `;
+}
 </script>
 
 <template>
@@ -1279,7 +1302,13 @@ onMounted(() => {
     />
   </el-dialog>
   <el-page-header
-    :content="$t('routes.remoteControl')"
+    :content="
+      $t('routes.remoteControl') +
+      ' - ' +
+      $t('common.at') +
+      parseTimeout(remoteTimeout) +
+      $t('common.release')
+    "
     style="margin-top: 15px; margin-left: 20px"
     @back="close"
   />
@@ -1667,61 +1696,27 @@ onMounted(() => {
           >
             <el-row :gutter="20">
               <el-col :span="12">
-                <el-tabs type="border-card" stretch>
-                  <el-tab-pane :label="$t('IOSRemote.siri.command')">
-                    <el-form size="small" :model="text" style="padding: 24px 0">
-                      <el-form-item>
-                        <el-input
-                          v-model="text.content"
-                          clearable
-                          size="small"
-                          :placeholder="$t('IOSRemote.siri.inputCommand')"
-                        ></el-input>
-                      </el-form-item>
-                      <div style="text-align: center">
-                        <el-button
-                          size="mini"
-                          type="primary"
-                          @click="sendCommand(text.content)"
-                          >{{ $t('androidRemoteTS.code.send') }}
-                        </el-button>
-                      </div>
-                    </el-form>
-                  </el-tab-pane>
-                  <el-tab-pane :label="$t('IOSRemote.positioning.mock')">
-                    <el-form size="small" :model="simLocation">
-                      <el-form-item :label="$t('IOSRemote.positioning.x')">
-                        <el-input-number
-                          v-model="simLocation.long"
-                          style="width: 100%"
-                          :precision="6"
-                          :step="0.1"
-                          controls-position="right"
-                        />
-                      </el-form-item>
-                      <el-form-item :label="$t('IOSRemote.positioning.y')">
-                        <el-input-number
-                          v-model="simLocation.lat"
-                          style="width: 100%"
-                          :precision="6"
-                          :step="0.1"
-                          controls-position="right"
-                        />
-                      </el-form-item>
-                    </el-form>
-                    <div style="text-align: center">
-                      <el-button size="mini" type="primary" @click="locationSet"
-                        >{{ $t('IOSRemote.positioning.start') }}
-                      </el-button>
+                <el-card>
+                  <template #header>
+                    <strong>{{ $t('IOSRemote.siri.command') }}</strong>
+                  </template>
+                  <div style="padding: 12px 0">
+                    <el-input
+                      v-model="text.content"
+                      clearable
+                      size="small"
+                      :placeholder="$t('IOSRemote.siri.inputCommand')"
+                    ></el-input>
+                    <div style="text-align: center; margin-top: 15px">
                       <el-button
                         size="mini"
                         type="primary"
-                        @click="locationUnset"
-                        >{{ $t('IOSRemote.positioning.end') }}
+                        @click="sendCommand(text.content)"
+                        >{{ $t('androidRemoteTS.code.send') }}
                       </el-button>
                     </div>
-                  </el-tab-pane>
-                </el-tabs>
+                  </div>
+                </el-card>
               </el-col>
               <el-col :span="12">
                 <el-tabs type="border-card" stretch>
@@ -1796,7 +1791,7 @@ onMounted(() => {
                   </el-tab-pane>
                 </el-tabs>
               </el-col>
-              <el-col :span="12" style="margin-top: 20px">
+              <el-col :span="12" style="margin-top: 10px">
                 <el-card>
                   <template #header>
                     <strong>{{ $t('IOSRemote.clipboard.operate') }}</strong>
@@ -1823,39 +1818,42 @@ onMounted(() => {
                   </div>
                 </el-card>
               </el-col>
-              <el-col :span="12" style="margin-top: 15px">
+              <el-col :span="12" style="margin-top: 10px">
                 <el-card>
                   <template #header>
-                    <strong>{{ $t('IOSRemote.errLog') }}</strong>
+                    <strong>{{ $t('IOSRemote.positioning.mock') }}</strong>
                   </template>
-                  <div
-                    v-loading="true"
-                    style="text-align: center"
-                    element-loading-spinner="el-icon-lock"
-                    element-loading-background="rgba(255, 255, 255, 1)"
-                    :element-loading-text="$t('IOSRemote.waitOpen')"
+                  <el-form
+                    size="small"
+                    :model="simLocation"
+                    style="padding: 38px 0"
                   >
-                    <el-upload
-                      v-loading="uploadLoading"
-                      drag
-                      action=""
-                      :with-credentials="true"
-                      :limit="1"
-                      :before-upload="beforeAvatarUpload2"
-                      :on-exceed="limitOut"
-                      :http-request="uploadPackage"
-                    >
-                      <i class="el-icon-upload"></i>
-                      <div class="el-upload__text">
-                        {{ $t('IOSRemote.moveIPA')
-                        }}<em>{{ $t('devices.detail.uploadImg') }}</em>
-                      </div>
-                      <template #tip>
-                        <div class="el-upload__tip">
-                          {{ $t('IOSRemote.onlyIPAFile') }}
-                        </div>
-                      </template>
-                    </el-upload>
+                    <el-form-item :label="$t('IOSRemote.positioning.x')">
+                      <el-input-number
+                        v-model="simLocation.long"
+                        style="width: 100%"
+                        :precision="6"
+                        :step="0.1"
+                        controls-position="right"
+                      />
+                    </el-form-item>
+                    <el-form-item :label="$t('IOSRemote.positioning.y')">
+                      <el-input-number
+                        v-model="simLocation.lat"
+                        style="width: 100%"
+                        :precision="6"
+                        :step="0.1"
+                        controls-position="right"
+                      />
+                    </el-form-item>
+                  </el-form>
+                  <div style="text-align: center">
+                    <el-button size="mini" type="primary" @click="locationSet"
+                      >{{ $t('IOSRemote.positioning.start') }}
+                    </el-button>
+                    <el-button size="mini" type="primary" @click="locationUnset"
+                      >{{ $t('IOSRemote.positioning.end') }}
+                    </el-button>
                   </div>
                 </el-card>
               </el-col>
@@ -1930,7 +1928,7 @@ onMounted(() => {
             </el-row>
             <el-card shadow="hover" style="margin-top: 15px">
               <el-table :data="currAppListPageData" border>
-                <el-table-column width="90" header-align="center">
+                <el-table-column width="100" header-align="center">
                   <template #header>
                     <el-button size="mini" @click="refreshAppList"
                       >{{ $t('androidRemoteTS.code.refresh') }}
@@ -1980,6 +1978,13 @@ onMounted(() => {
                   show-overflow-tooltip
                   prop="version"
                   :label="$t('androidRemoteTS.code.version')"
+                  width="120"
+                ></el-table-column>
+                <el-table-column
+                  header-align="center"
+                  show-overflow-tooltip
+                  prop="shortVersion"
+                  :label="$t('androidRemoteTS.code.subversion')"
                   width="120"
                 ></el-table-column>
                 <el-table-column align="center" width="200">
@@ -2046,7 +2051,7 @@ onMounted(() => {
               v-if="proxyWebPort !== 0"
               allow="clipboard-read;clipboard-write"
               :style="
-                'border:1px solid #C0C4CC;;width: 100%;height: ' +
+                'border:1px solid #C0C4CC;width: 100%;height: ' +
                 iFrameHeight +
                 'px;margin-top:15px'
               "
@@ -2825,18 +2830,14 @@ onMounted(() => {
                               <el-form-item label="index">
                                 <span>{{ elementDetail['index'] }}</span>
                               </el-form-item>
-                              <el-form-item
-                                :label="$t('androidRemoteTS.code.label.six')"
-                              >
+                              <el-form-item label="enabled">
                                 <el-switch
                                   :value="JSON.parse(elementDetail['enabled'])"
                                   disabled
                                 >
                                 </el-switch>
                               </el-form-item>
-                              <el-form-item
-                                :label="$t('androidRemoteTS.code.label.five')"
-                              >
+                              <el-form-item label="visible">
                                 <el-switch
                                   :value="JSON.parse(elementDetail['visible'])"
                                   disabled

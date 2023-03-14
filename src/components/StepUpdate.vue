@@ -31,14 +31,7 @@ const props = defineProps({
   parentId: Number,
 });
 const selectCondition = (e) => {
-  step.value.stepType = '';
-  step.value.text = '';
-  step.value.elements = [];
-  step.value.content = '';
   step.value.error = 1;
-  if (e === 3) {
-    step.value.stepType = 'else';
-  }
 };
 const step = ref({
   id: null,
@@ -190,11 +183,11 @@ const monkeyOptions = {
   },
   systemEvent: {
     label: '物理按键事件权重',
-    des: 'Home、返回、音量控制键等等',
+    des: 'Home、返回键等等',
   },
   navEvent: {
     label: '系统导航事件权重',
-    des: '随机开关WIFI、飞行模式、定位',
+    des: '随机开关WIFI',
   },
   isOpenH5Listener: {
     label: 'H5页面监听器',
@@ -219,6 +212,13 @@ const changeType = (e) => {
   step.value.elements = [];
   step.value.content = '';
   activityList.value = [{ name: '' }];
+  if (
+    step.value.stepType === 'iteratorAndroidElement' ||
+    step.value.stepType === 'iteratorIOSElement' ||
+    step.value.stepType === 'iteratorPocoElement'
+  ) {
+    step.value.conditionType = 4;
+  }
 };
 const isShowInputNumber = (data) => {
   if (
@@ -231,6 +231,7 @@ const isShowInputNumber = (data) => {
   }
   return true;
 };
+const attrList = ref([]);
 const removeEmpty = (data) => {
   for (const i in data) {
     const item = data[i];
@@ -249,15 +250,24 @@ const emit = defineEmits(['flush']);
 const summitStep = () => {
   stepForm.value.validate((valid) => {
     if (valid) {
-      if (step.value.stepType === 'monkey') {
+      if (step.value.conditionType === 3) {
+        step.value.stepType = '';
+        step.value.text = '';
+        step.value.elements = [];
+        step.value.content = '';
+        step.value.error = 1;
+      } else if (step.value.stepType === 'monkey') {
         removeEmpty(activityList.value);
         step.value.text = JSON.stringify(activityList.value);
         step.value.content = JSON.stringify(monkey.value);
-      }
-      if (step.value.stepType === 'setTheRealPositionOfTheWindow') {
+      } else if (step.value.stepType === 'setTheRealPositionOfTheWindow') {
         step.value.content = JSON.stringify(offsets.value);
-      }
-      if (step.value.stepType === 'runScript') {
+      } else if (
+        step.value.stepType === 'logElementAttr' ||
+        step.value.stepType === 'logPocoElementAttr'
+      ) {
+        step.value.text = JSON.stringify(attrList.value);
+      } else if (step.value.stepType === 'runScript') {
         if (step.value.text.length === 0) {
           step.value.text = 'Groovy';
         }
@@ -328,6 +338,12 @@ const getStepInfo = (id) => {
       }
       if (step.value.stepType === 'setTheRealPositionOfTheWindow') {
         offsets.value = JSON.parse(step.value.content);
+      }
+      if (
+        step.value.stepType === 'logElementAttr' ||
+        step.value.stepType === 'logPocoElementAttr'
+      ) {
+        attrList.value = JSON.parse(step.value.text);
       }
       if (step.value.stepType === 'monkey') {
         monkey.value = JSON.parse(step.value.content);
@@ -411,24 +427,6 @@ const androidOptions = ref([
     ],
   },
   {
-    label: '触控操作',
-    value: 'action',
-    children: [
-      {
-        value: 'tap',
-        label: '点击坐标',
-      },
-      {
-        value: 'longPressPoint',
-        label: '长按坐标',
-      },
-      {
-        value: 'swipe',
-        label: '滑动拖拽',
-      },
-    ],
-  },
-  {
     label: '应用操作',
     value: 'app',
     children: [
@@ -471,6 +469,14 @@ const androidOptions = ref([
             label: '切换窗口模式',
           },
           {
+            value: 'switchVisibleMode',
+            label: '切换Invisible控件展示',
+          },
+          {
+            value: 'switchIgnoreMode',
+            label: '切换忽略不重要视图模式',
+          },
+          {
             value: 'isExistEle',
             label: '判断控件元素是否存在',
           },
@@ -509,6 +515,32 @@ const androidOptions = ref([
           {
             value: 'getText',
             label: '验证文本',
+          },
+          {
+            value: 'logElementAttr',
+            label: '日志输出控件信息',
+          },
+          {
+            value: 'iteratorAndroidElement',
+            label: '迭代控件列表',
+          },
+        ],
+      },
+      {
+        label: '坐标控件',
+        value: 'pointEle',
+        children: [
+          {
+            value: 'tap',
+            label: '点击坐标',
+          },
+          {
+            value: 'longPressPoint',
+            label: '长按坐标',
+          },
+          {
+            value: 'swipe',
+            label: '滑动拖拽',
           },
         ],
       },
@@ -551,6 +583,18 @@ const androidOptions = ref([
           {
             value: 'getTitle',
             label: '验证标题',
+          },
+          {
+            value: 'getUrl',
+            label: '验证网址',
+          },
+          {
+            value: 'webViewRefresh',
+            label: '刷新页面',
+          },
+          {
+            value: 'webViewBack',
+            label: '回退页面',
           },
         ],
       },
@@ -609,6 +653,14 @@ const androidOptions = ref([
           {
             value: 'getPocoText',
             label: '验证文本',
+          },
+          {
+            value: 'logPocoElementAttr',
+            label: '日志输出控件信息',
+          },
+          {
+            value: 'iteratorPocoElement',
+            label: '迭代控件列表',
           },
         ],
       },
@@ -687,12 +739,22 @@ const androidOptions = ref([
         disabled: true,
       },
       {
+        value: 'pause',
+        label: '强制等待',
+      },
+    ],
+  },
+  {
+    label: '运行设置',
+    value: 'settings',
+    children: [
+      {
         value: 'stepHold',
         label: '步骤间隔设置',
       },
       {
-        value: 'pause',
-        label: '强制等待',
+        value: 'switchTouchMode',
+        label: '触控模式设置',
       },
     ],
   },
@@ -753,24 +815,6 @@ const iOSOptions = ref([
             label: '获取文本',
           },
         ],
-      },
-    ],
-  },
-  {
-    label: '触控操作',
-    value: 'action',
-    children: [
-      {
-        value: 'tap',
-        label: '点击坐标',
-      },
-      {
-        value: 'longPressPoint',
-        label: '长按坐标',
-      },
-      {
-        value: 'swipe',
-        label: '滑动拖拽',
       },
     ],
   },
@@ -837,12 +881,42 @@ const iOSOptions = ref([
             label: '清空输入框',
           },
           {
+            value: 'getElementAttr',
+            label: '验证控件属性',
+          },
+          {
             value: 'getTextValue',
             label: '获取文本',
           },
           {
             value: 'getText',
             label: '验证文本',
+          },
+          {
+            value: 'logElementAttr',
+            label: '日志输出控件信息',
+          },
+          {
+            value: 'iteratorIOSElement',
+            label: '迭代控件列表',
+          },
+        ],
+      },
+      {
+        label: '坐标控件',
+        value: 'pointEle',
+        children: [
+          {
+            value: 'tap',
+            label: '点击坐标',
+          },
+          {
+            value: 'longPressPoint',
+            label: '长按坐标',
+          },
+          {
+            value: 'swipe',
+            label: '滑动拖拽',
           },
         ],
       },
@@ -887,6 +961,10 @@ const iOSOptions = ref([
             label: '解冻控件树',
           },
           {
+            value: 'closePocoDriver',
+            label: '关闭PocoDriver',
+          },
+          {
             value: 'getPocoElementAttr',
             label: '验证控件属性',
           },
@@ -899,8 +977,12 @@ const iOSOptions = ref([
             label: '验证文本',
           },
           {
-            value: 'closePocoDriver',
-            label: '关闭PocoDriver',
+            value: 'logPocoElementAttr',
+            label: '日志输出控件信息',
+          },
+          {
+            value: 'iteratorPocoElement',
+            label: '迭代控件列表',
           },
         ],
       },
@@ -976,12 +1058,18 @@ const iOSOptions = ref([
         disabled: true,
       },
       {
-        value: 'stepHold',
-        label: '步骤间隔设置',
-      },
-      {
         value: 'pause',
         label: '强制等待',
+      },
+    ],
+  },
+  {
+    label: '运行设置',
+    value: 'settings',
+    children: [
+      {
+        value: 'stepHold',
+        label: '步骤间隔设置',
       },
     ],
   },
@@ -1046,1175 +1134,1413 @@ onMounted(() => {
       </el-icon>
     </el-divider>
 
-    <div v-if="step.stepType === 'keyCodeSelf'">
-      <el-form-item
-        label="按键Code"
-        :rules="[
-          { required: true, message: '请输入按键Code', trigger: 'blur' },
-        ]"
-        prop="content"
-      >
-        <el-input
-          v-model="step.content"
-          placeholder="请输入按键Code"
-        ></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'keyCode'">
-      <el-form-item
-        label="系统按键"
-        :rules="[
-          { required: true, message: '请选择系统按键', trigger: 'change' },
-        ]"
-        prop="content"
-      >
-        <el-select
-          v-if="platform === 1"
-          v-model="step.content"
-          placeholder="请选择系统按键"
+    <div v-if="step.conditionType !== 3">
+      <div v-if="step.stepType === 'keyCodeSelf'">
+        <el-form-item
+          label="按键Code"
+          :rules="[
+            { required: true, message: '请输入按键Code', trigger: 'blur' },
+          ]"
+          prop="content"
         >
-          <el-option-group label="常用按键">
-            <el-option value="HOME"></el-option>
-            <el-option value="BACK"></el-option>
-            <el-option value="MENU"></el-option>
-            <el-option value="APP_SWITCH"></el-option>
-          </el-option-group>
-          <el-option-group label="其他">
-            <el-option value="ENTER"></el-option>
-            <el-option value="DEL"></el-option>
-            <el-option value="BRIGHTNESS_DOWN"></el-option>
-            <el-option value="BRIGHTNESS_UP"></el-option>
-            <el-option value="VOLUME_UP"></el-option>
-            <el-option value="VOLUME_DOWN"></el-option>
-            <el-option value="VOLUME_MUTE"></el-option>
-            <el-option value="CAMERA"></el-option>
-            <el-option value="CALL"></el-option>
-            <el-option value="EXPLORER"></el-option>
-            <el-option value="POWER"></el-option>
-          </el-option-group>
-        </el-select>
-        <el-select
-          v-if="platform === 2"
-          v-model="step.content"
-          placeholder="请选择系统按键"
-        >
-          <el-option value="home"></el-option>
-          <el-option value="volumeup"></el-option>
-          <el-option value="volumedown"></el-option>
-        </el-select>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'tap'">
-      <element-select
-        label="坐标控件"
-        place="请选择坐标控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="point"
-        :step="step"
-      />
-    </div>
-
-    <div v-if="step.stepType === 'longPressPoint'">
-      <element-select
-        label="坐标控件"
-        place="请选择坐标控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="point"
-        :step="step"
-      />
-      <el-form-item label="长按时间">
-        <el-input-number
-          v-model="step.content"
-          :min="100"
-          :step="100"
-        ></el-input-number>
-        ms
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'swipe'">
-      <element-select
-        label="从控件"
-        place="请选择坐标控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="point"
-        :step="step"
-      />
-      <element-select
-        label="拖拽到"
-        place="请选择坐标控件元素"
-        :index="1"
-        :project-id="projectId"
-        type="point"
-        :step="step"
-      />
-    </div>
-
-    <div v-if="step.stepType === 'pocoClick'">
-      <element-select
-        label="POCO控件"
-        place="请选择POCO控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="poco"
-        :step="step"
-      />
-    </div>
-
-    <div v-if="step.stepType === 'pocoLongPress'">
-      <element-select
-        label="POCO控件"
-        place="请选择POCO控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="poco"
-        :step="step"
-      />
-      <el-form-item label="长按时间">
-        <el-input-number
-          v-model="step.content"
-          :min="100"
-          :step="100"
-        ></el-input-number>
-        ms
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'pocoSwipe'">
-      <element-select
-        label="从控件"
-        place="请选择坐标控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="poco"
-        :step="step"
-      />
-      <element-select
-        label="拖拽到"
-        place="请选择坐标控件元素"
-        :index="1"
-        :project-id="projectId"
-        type="poco"
-        :step="step"
-      />
-    </div>
-
-    <div v-if="step.stepType === 'startPocoDriver'">
-      <el-form-item
-        label="游戏引擎"
-        prop="content"
-        :rules="{
-          required: true,
-          message: '引擎不能为空',
-          trigger: 'change',
-        }"
-      >
-        <el-select v-model="step.content" @change="switchPocoType">
-          <el-option
-            v-for="item in pocoTypeList"
-            :key="item.name"
-            :value="item.value"
-            :label="item.name"
-          >
-          </el-option>
-        </el-select>
-      </el-form-item>
-      <el-form-item
-        label="通信端口"
-        prop="text"
-        :rules="{
-          required: true,
-          message: '端口不能为空',
-          trigger: 'change',
-        }"
-      >
-        <el-input
-          v-model="step.text"
-          style="width: 200px"
-          placeholder="Default connect port"
-        ></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'setTheRealPositionOfTheWindow'">
-      <el-form-item
-        label="offsetWidth"
-        label-width="120"
-        :rules="{
-          required: true,
-          message: 'offsetWidth不能为空',
-          trigger: 'blur',
-        }"
-      >
-        <el-input
-          v-model="offsets.offsetWidth"
-          placeholder="请输入offsetWidth"
-        ></el-input>
-      </el-form-item>
-      <el-form-item
-        label="offsetHeight"
-        label-width="120"
-        :rules="{
-          required: true,
-          message: 'offsetHeight不能为空',
-          trigger: 'blur',
-        }"
-      >
-        <el-input
-          v-model="offsets.offsetHeight"
-          placeholder="请输入offsetHeight"
-        ></el-input>
-      </el-form-item>
-      <el-form-item
-        label="windowWidth"
-        label-width="120"
-        :rules="{
-          required: true,
-          message: 'windowWidth不能为空',
-          trigger: 'blur',
-        }"
-      >
-        <el-input
-          v-model="offsets.windowWidth"
-          placeholder="请输入windowWidth"
-        ></el-input>
-      </el-form-item>
-      <el-form-item
-        label="windowHeight"
-        label-width="120"
-        :rules="{
-          required: true,
-          message: 'windowHeight不能为空',
-          trigger: 'blur',
-        }"
-      >
-        <el-input
-          v-model="offsets.windowHeight"
-          placeholder="请输入windowHeight"
-        ></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'isExistPocoEle'">
-      <element-select
-        label="POCO控件"
-        place="请选择POCO控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="poco"
-        :step="step"
-      />
-      <el-form-item
-        label="存在与否"
-        prop="content"
-        :rules="{
-          required: true,
-          message: '断言不能为空',
-          trigger: 'change',
-        }"
-      >
-        <el-select v-model="step.content">
-          <el-option label="存在" value="true"></el-option>
-          <el-option label="不存在" value="false"></el-option>
-        </el-select>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'openApp'">
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-        title="TIPS: 需要临时变量或全局变量时，可以添加{{变量名}}的形式"
-      />
-      <el-form-item
-        prop="text"
-        label="打开应用"
-        :rules="{
-          required: true,
-          message: '包名不能为空',
-          trigger: 'blur',
-        }"
-      >
-        <el-input
-          v-model="step.text"
-          placeholder="请输入启动的App包名"
-        ></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'terminate'">
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-        title="TIPS: 需要临时变量或全局变量时，可以添加{{变量名}}的形式"
-      />
-      <el-form-item
-        prop="text"
-        label="终止应用"
-        :rules="{
-          required: true,
-          message: '包名不能为空',
-          trigger: 'blur',
-        }"
-      >
-        <el-input
-          v-model="step.text"
-          placeholder="请输入终止的App包名"
-        ></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'install'">
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-        title="TIPS: 需要临时变量或全局变量时，可以添加{{变量名}}的形式"
-      />
-      <el-form-item
-        label="安装方式"
-        prop="content"
-        :rules="{
-          required: true,
-          message: '安装方式不能为空',
-          trigger: 'change',
-        }"
-      >
-        <el-select v-model="step.content">
-          <el-option label="自定义下载路径或本地安装" :value="1"></el-option>
-          <el-option label="已有安装包列表安装" :value="2"></el-option>
-        </el-select>
-      </el-form-item>
-      <el-form-item
-        v-if="step.content === 1"
-        prop="text"
-        label="安装路径"
-        :rules="{
-          required: true,
-          message: '路径不能为空',
-          trigger: 'blur',
-        }"
-      >
-        <el-input
-          v-model="step.text"
-          placeholder="请输入App下载路径或本地apk路径"
-        ></el-input>
-      </el-form-item>
-      <el-alert
-        v-if="step.content === 2"
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-        title="TIPS: 需要先接入Jenkins插件，并确认安装包管理有对应安装包。多个符合条件的安装包优先选择最新的安装。"
-      />
-      <el-form-item v-if="step.content === 2" prop="text" label="分支名称">
-        <el-input
-          v-model="step.text"
-          placeholder="请输入分支名称，支持模糊匹配，可以为空"
-        ></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'uninstall'">
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-        title="TIPS: 需要临时变量或全局变量时，可以添加{{变量名}}的形式"
-      />
-      <el-form-item
-        prop="text"
-        label="卸载应用"
-        :rules="{
-          required: true,
-          message: '包名不能为空',
-          trigger: 'blur',
-        }"
-      >
-        <el-input
-          v-model="step.text"
-          placeholder="请输入卸载的App包名"
-        ></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'runBack'">
-      <el-form-item label="后台运行">
-        <el-input-number
-          v-model="step.content"
-          :min="1000"
-          :step="1000"
-        ></el-input-number>
-        ms
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'appReset'">
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-        title="TIPS: 需要临时变量或全局变量时，可以添加{{变量名}}的形式"
-      />
-      <el-form-item
-        prop="text"
-        label="清空应用"
-        :rules="{
-          required: true,
-          message: '包名不能为空',
-          trigger: 'blur',
-        }"
-      >
-        <el-input
-          v-model="step.text"
-          placeholder="请输入清空应用的App包名"
-        ></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'toWebView'">
-      <el-form-item label="包名">
-        <el-input
-          v-model="step.content"
-          placeholder="请输入WebView所在包名"
-        ></el-input>
-      </el-form-item>
-      <el-form-item label="进程名">
-        <el-input
-          v-model="step.text"
-          placeholder="（可选）请输入WebView所在进程名，不输入默认为包名"
-        ></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'toHandle'">
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-        title="TIPS: Handle相当于页面的Tab，切换WebView后找不到页面可以尝试切换Handle"
-      />
-      <el-form-item label="Handle信息">
-        <el-input
-          v-model="step.content"
-          placeholder="请输入Handle页面标题 或 地址 或 index下标"
-        ></el-input>
-      </el-form-item>
-    </div>
-
-    <div
-      v-if="
-        step.stepType === 'isExistEle' || step.stepType === 'isExistWebViewEle'
-      "
-    >
-      <element-select
-        label="控件元素"
-        place="请选择控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="normal"
-        :step="step"
-      />
-      <el-form-item
-        label="存在与否"
-        prop="content"
-        :rules="{
-          required: true,
-          message: '断言不能为空',
-          trigger: 'change',
-        }"
-      >
-        <el-select v-model="step.content">
-          <el-option label="存在" value="true"></el-option>
-          <el-option label="不存在" value="false"></el-option>
-        </el-select>
-      </el-form-item>
-    </div>
-
-    <div
-      v-if="
-        step.stepType === 'airPlaneMode' ||
-        step.stepType === 'wifiMode' ||
-        step.stepType === 'locationMode'
-      "
-    >
-      <el-form-item
-        label="开启与否"
-        prop="content"
-        :rules="{
-          required: true,
-          message: '状态不能为空',
-          trigger: 'change',
-        }"
-      >
-        <el-select v-model="step.content">
-          <el-option label="开启" value="true"></el-option>
-          <el-option label="关闭" value="false"></el-option>
-        </el-select>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'switchWindowMode'">
-      <el-form-item
-        label="切换模式"
-        prop="content"
-        :rules="{
-          required: true,
-          message: '模式不能为空',
-          trigger: 'change',
-        }"
-      >
-        <el-select v-model="step.content">
-          <el-option label="多窗口模式" value="true"></el-option>
-          <el-option label="单窗口模式" value="false"></el-option>
-        </el-select>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'click' || step.stepType === 'webViewClick'">
-      <element-select
-        label="控件元素"
-        place="请选择控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="normal"
-        :step="step"
-      />
-    </div>
-
-    <div
-      v-if="step.stepType === 'sendKeys' || step.stepType === 'webViewSendKeys'"
-    >
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-        title="TIPS: 需要临时变量或全局变量时，可以添加{{变量名}}的形式"
-      />
-      <element-select
-        label="控件元素"
-        place="请选择控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="normal"
-        :step="step"
-      />
-      <el-form-item label="输入值">
-        <el-input v-model="step.content" placeholder="请输入值"></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'sendKeyForce'">
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-        title="TIPS: 本功能需要先唤醒系统键盘。需要临时变量或全局变量时，可以添加{{变量名}}的形式。"
-      />
-      <el-form-item label="输入值">
-        <el-input v-model="step.content" placeholder="请输入值"></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'sendKeysByActions'">
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-      >
-        <template #title>
-          <div>TIPS: 使用Android Driver在Flutter页面输入文本时使用此方式。</div>
-          <div>需要临时变量或全局变量时，可以添加{{ 变量名 }}的形式。</div>
-        </template>
-      </el-alert>
-      <element-select
-        label="控件元素"
-        place="请选择控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="normal"
-        :step="step"
-      />
-      <el-form-item label="输入值">
-        <el-input v-model="step.content" placeholder="请输入值"></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'swipe2'">
-      <element-select
-        label="从控件"
-        place="请选择控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="normal"
-        :step="step"
-      />
-      <element-select
-        label="拖拽到"
-        place="请选择控件元素"
-        :index="1"
-        :project-id="projectId"
-        type="normal"
-        :step="step"
-      />
-    </div>
-
-    <div v-if="step.stepType === 'longPress'">
-      <element-select
-        label="控件元素"
-        place="请选择控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="normal"
-        :step="step"
-      />
-      <el-form-item label="长按时间">
-        <el-input-number
-          v-model="step.content"
-          :min="100"
-          :step="100"
-        ></el-input-number>
-        ms
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'clear' || step.stepType === 'webViewClear'">
-      <element-select
-        label="控件元素"
-        place="请选择控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="normal"
-        :step="step"
-      />
-    </div>
-
-    <div
-      v-if="
-        step.stepType === 'getTextValue' ||
-        step.stepType === 'getWebViewTextValue'
-      "
-    >
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-        title="TIPS: 可以将获取的文本放入临时变量中"
-      />
-      <element-select
-        label="控件元素"
-        place="请选择控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="normal"
-        :step="step"
-      />
-      <el-form-item label="变量名">
-        <el-input v-model="step.content" placeholder="请输入变量名"></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'getPocoTextValue'">
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-        title="TIPS: 可以将获取的文本放入临时变量中"
-      />
-      <element-select
-        label="控件元素"
-        place="请选择控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="poco"
-        :step="step"
-      />
-      <el-form-item label="变量名">
-        <el-input v-model="step.content" placeholder="请输入变量名"></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'setPasteboard'">
-      <el-form-item label="文本信息">
-        <el-input
-          v-model="step.content"
-          placeholder="请输入设置的文本信息"
-        ></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'getPasteboard'">
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-        title="TIPS: 获取的文本可放入临时变量中"
-      />
-      <el-form-item label="变量名">
-        <el-input v-model="step.content" placeholder="请输入变量名"></el-input>
-      </el-form-item>
-    </div>
-
-    <div
-      v-if="step.stepType === 'getText' || step.stepType === 'getWebViewText'"
-    >
-      <element-select
-        label="控件元素"
-        place="请选择控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="normal"
-        :step="step"
-      />
-      <el-form-item label="期望值">
-        <el-input v-model="step.content" placeholder="请输入期望值"></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'getPocoText'">
-      <element-select
-        label="控件元素"
-        place="请选择控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="poco"
-        :step="step"
-      />
-      <el-form-item label="期望值">
-        <el-input v-model="step.content" placeholder="请输入期望值"></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'getTitle'">
-      <el-form-item label="期望值">
-        <el-input v-model="step.content" placeholder="请输入期望值"></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'getActivity'">
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-        title="TIPS: 需要临时变量或全局变量时，可以添加{{变量名}}的形式"
-      />
-      <global-params-select
-        label="期望值"
-        place="请输入期望值或选择全局变量"
-        :project-id="projectId"
-        :step="step"
-      />
-    </div>
-
-    <div v-if="step.stepType === 'getElementAttr'">
-      <element-select
-        label="控件元素"
-        place="请选择控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="normal"
-        :step="step"
-      />
-      <el-form-item
-        label="元素属性"
-        prop="text"
-        :rules="{
-          required: true,
-          message: '元素属性不能为空',
-          trigger: 'change',
-        }"
-      >
-        <el-select
-          v-model="step.text"
-          label="属性"
-          placeholder="请选择元素属性"
-        >
-          <el-option value="checkable"></el-option>
-          <el-option value="checked"></el-option>
-          <el-option value="clickable"></el-option>
-          <el-option value="selected"></el-option>
-          <el-option value="displayed"></el-option>
-          <el-option value="enabled"></el-option>
-          <el-option value="focusable"></el-option>
-          <el-option value="focused"></el-option>
-          <el-option value="long-clickable"></el-option>
-          <el-option value="scrollable"></el-option>
-        </el-select>
-      </el-form-item>
-      <el-form-item
-        label="期望值"
-        prop="content"
-        :rules="{
-          required: true,
-          message: '断言不能为空',
-          trigger: 'change',
-        }"
-      >
-        <el-select v-model="step.content">
-          <el-option label="true" value="true"></el-option>
-          <el-option label="false" value="false"></el-option>
-        </el-select>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'getPocoElementAttr'">
-      <element-select
-        label="控件元素"
-        place="请选择控件元素"
-        :index="0"
-        :project-id="projectId"
-        type="poco"
-        :step="step"
-      />
-      <el-form-item
-        label="元素属性"
-        prop="text"
-        :rules="{
-          required: true,
-          message: '元素属性不能为空',
-          trigger: 'change',
-        }"
-      >
-        <el-select
-          v-model="step.text"
-          label="属性"
-          placeholder="请选择元素属性"
-        >
-          <el-option value="type"></el-option>
-          <el-option value="name"></el-option>
-          <el-option value="clickable"></el-option>
-          <el-option value="visible"></el-option>
-        </el-select>
-      </el-form-item>
-      <el-form-item label="期望值" prop="content">
-        <el-input v-model="step.content" placeholder="请输入期望值"></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'siriCommand'">
-      <el-form-item label="siri指令">
-        <el-input
-          v-model="step.content"
-          placeholder="请输入siri指令，例：what day is it today?"
-        ></el-input>
-      </el-form-item>
-    </div>
-
-    <div
-      v-if="
-        step.stepType === 'assertEquals' ||
-        step.stepType === 'assertTrue' ||
-        step.stepType === 'assertNotTrue'
-      "
-    >
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-        title="TIPS: 可使用{{变量名}}将全局变量或临时变量插入，验证时将替换该内容为变量值"
-      />
-      <el-form-item label="真实值">
-        <el-input v-model="step.text" placeholder="请输入真实值"></el-input>
-      </el-form-item>
-      <el-form-item label="期望值">
-        <el-input v-model="step.content" placeholder="请输入期望值"></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'clickByImg'">
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-        title="TIPS: 默认按顺序使用SIFT特征匹配、AKAZE特征匹配和模板匹配算法"
-      />
-      <element-select
-        label="控件截图"
-        place="请选择控件元素截图"
-        :index="0"
-        :project-id="projectId"
-        type="image"
-        :step="step"
-      />
-    </div>
-
-    <div v-if="step.stepType === 'readText'">
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-        title="TIPS: 默认语言包只有简体中文和英文，需要额外添加可以咨询管理员。"
-      />
-      <el-form-item
-        prop="content"
-        label="识别语言"
-        :rules="{
-          required: true,
-          message: '语言类型不能为空',
-          trigger: 'change',
-        }"
-      >
-        <el-select v-model="step.content" placeholder="请选择识别语言类型">
-          <el-option label="简体中文" value="chi_sim"></el-option>
-          <el-option label="英文" value="eng"></el-option>
-        </el-select>
-      </el-form-item>
-      <el-form-item
-        prop="text"
-        label="期望内容"
-        :rules="{
-          required: true,
-          message: '期望文本不能为空',
-          trigger: 'blur',
-        }"
-      >
-        <el-input
-          v-model="step.text"
-          type="text"
-          placeholder="请输入期望包含的文本内容"
-        ></el-input>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'checkImage'">
-      <element-select
-        label="页面截图"
-        place="请选择页面截图"
-        :index="0"
-        :project-id="projectId"
-        type="image"
-        :step="step"
-      />
-      <el-form-item label="期望相似度">
-        <el-input-number
-          v-model="step.content"
-          :min="70"
-          :step="1"
-        ></el-input-number>
-        %
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'publicStep'">
-      <el-form-item
-        label="公共步骤"
-        prop="text"
-        :rules="{
-          required: true,
-          message: '公共步骤不能为空',
-          trigger: 'change',
-        }"
-      >
-        <el-select
-          v-model="step.text"
-          placeholder="请选择公共步骤"
-          no-data-text="该项目暂未添加公共步骤"
-        >
-          <el-option
-            v-for="item in publicStepList"
-            :key="item.id"
-            :label="item.name"
-            :value="item.id + ''"
-          ></el-option>
-        </el-select>
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'stepHold'">
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
-        title="TIPS: 设置后从该步骤开始，后面的每个步骤都会按照设置值来间隔。"
-      />
-      <el-form-item label="步骤间隔">
-        <el-input-number
-          v-model="step.content"
-          :min="0"
-          :step="1000"
-        ></el-input-number>
-        ms
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'pause'">
-      <el-form-item label="等待时间">
-        <el-input-number
-          v-model="step.content"
-          :min="1000"
-          :step="1000"
-        ></el-input-number>
-        ms
-      </el-form-item>
-    </div>
-
-    <div
-      v-if="
-        step.stepType === 'findElementInterval' ||
-        step.stepType === 'setDefaultFindPocoElementInterval'
-      "
-    >
-      <el-form-item label="重试次数">
-        <el-input-number
-          v-model="step.content"
-          :min="0"
-          :step="1"
-        ></el-input-number>
-      </el-form-item>
-      <el-form-item label="重试间隔">
-        <el-input-number
-          v-model="step.text"
-          :min="0"
-          :step="500"
-        ></el-input-number>
-        ms
-      </el-form-item>
-    </div>
-
-    <div v-if="step.stepType === 'monkey'">
-      <el-form
-        :model="monkey"
-        label-position="left"
-        label-width="90px"
-        class="demo-table-expand"
-        size="small"
-      >
-        <el-form-item label="测试包名">
           <el-input
-            v-model="monkey.packageName"
-            size="small"
-            type="text"
-            placeholder="请输入测试包名"
+            v-model="step.content"
+            placeholder="请输入按键Code"
           ></el-input>
         </el-form-item>
-        <el-form-item label="事件数量">
+      </div>
+
+      <div v-if="step.stepType === 'keyCode'">
+        <el-form-item
+          label="系统按键"
+          :rules="[
+            { required: true, message: '请选择系统按键', trigger: 'change' },
+          ]"
+          prop="content"
+        >
+          <el-select
+            v-if="platform === 1"
+            v-model="step.content"
+            placeholder="请选择系统按键"
+          >
+            <el-option-group label="常用按键">
+              <el-option value="HOME"></el-option>
+              <el-option value="BACK"></el-option>
+              <el-option value="MENU"></el-option>
+              <el-option value="APP_SWITCH"></el-option>
+            </el-option-group>
+            <el-option-group label="其他">
+              <el-option value="ENTER"></el-option>
+              <el-option value="DEL"></el-option>
+              <el-option value="BRIGHTNESS_DOWN"></el-option>
+              <el-option value="BRIGHTNESS_UP"></el-option>
+              <el-option value="VOLUME_UP"></el-option>
+              <el-option value="VOLUME_DOWN"></el-option>
+              <el-option value="VOLUME_MUTE"></el-option>
+              <el-option value="CAMERA"></el-option>
+              <el-option value="CALL"></el-option>
+              <el-option value="EXPLORER"></el-option>
+              <el-option value="POWER"></el-option>
+            </el-option-group>
+          </el-select>
+          <el-select
+            v-if="platform === 2"
+            v-model="step.content"
+            placeholder="请选择系统按键"
+          >
+            <el-option value="home"></el-option>
+            <el-option value="volumeup"></el-option>
+            <el-option value="volumedown"></el-option>
+          </el-select>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'switchTouchMode'">
+        <el-form-item
+          label="触控模式"
+          :rules="[
+            {
+              required: true,
+              message: '请选择触控模式，默认为APK触控',
+              trigger: 'change',
+            },
+          ]"
+          prop="content"
+        >
+          <el-select v-model="step.content" placeholder="请选择触控模式">
+            <el-option value="SONIC_APK"></el-option>
+            <el-option value="ADB"></el-option>
+          </el-select>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'tap'">
+        <element-select
+          label="坐标控件"
+          place="请选择坐标控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="point"
+          :step="step"
+        />
+      </div>
+
+      <div v-if="step.stepType === 'longPressPoint'">
+        <element-select
+          label="坐标控件"
+          place="请选择坐标控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="point"
+          :step="step"
+        />
+        <el-form-item label="长按时间">
           <el-input-number
-            v-model="monkey.pctNum"
-            style="width: 100%"
-            size="small"
-            :min="10"
-            :step="10"
+            v-model="step.content"
+            :min="100"
+            :step="100"
+          ></el-input-number>
+          ms
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'swipe'">
+        <element-select
+          label="从控件"
+          place="请选择坐标控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="point"
+          :step="step"
+        />
+        <element-select
+          label="拖拽到"
+          place="请选择坐标控件元素"
+          :index="1"
+          :project-id="projectId"
+          type="point"
+          :step="step"
+        />
+      </div>
+
+      <div v-if="step.stepType === 'pocoClick'">
+        <element-select
+          label="POCO控件"
+          place="请选择POCO控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="poco"
+          :step="step"
+        />
+      </div>
+
+      <div v-if="step.stepType === 'pocoLongPress'">
+        <element-select
+          label="POCO控件"
+          place="请选择POCO控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="poco"
+          :step="step"
+        />
+        <el-form-item label="长按时间">
+          <el-input-number
+            v-model="step.content"
+            :min="100"
+            :step="100"
+          ></el-input-number>
+          ms
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'pocoSwipe'">
+        <element-select
+          label="从控件"
+          place="请选择坐标控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="poco"
+          :step="step"
+        />
+        <element-select
+          label="拖拽到"
+          place="请选择坐标控件元素"
+          :index="1"
+          :project-id="projectId"
+          type="poco"
+          :step="step"
+        />
+      </div>
+
+      <div v-if="step.stepType === 'startPocoDriver'">
+        <el-form-item
+          label="游戏引擎"
+          prop="content"
+          :rules="{
+            required: true,
+            message: '引擎不能为空',
+            trigger: 'change',
+          }"
+        >
+          <el-select v-model="step.content" @change="switchPocoType">
+            <el-option
+              v-for="item in pocoTypeList"
+              :key="item.name"
+              :value="item.value"
+              :label="item.name"
+            >
+            </el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item
+          label="通信端口"
+          prop="text"
+          :rules="{
+            required: true,
+            message: '端口不能为空',
+            trigger: 'change',
+          }"
+        >
+          <el-input
+            v-model="step.text"
+            style="width: 200px"
+            placeholder="Default connect port"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'setTheRealPositionOfTheWindow'">
+        <el-form-item
+          label="offsetWidth"
+          label-width="120"
+          :rules="{
+            required: true,
+            message: 'offsetWidth不能为空',
+            trigger: 'blur',
+          }"
+        >
+          <el-input
+            v-model="offsets.offsetWidth"
+            placeholder="请输入offsetWidth"
+          ></el-input>
+        </el-form-item>
+        <el-form-item
+          label="offsetHeight"
+          label-width="120"
+          :rules="{
+            required: true,
+            message: 'offsetHeight不能为空',
+            trigger: 'blur',
+          }"
+        >
+          <el-input
+            v-model="offsets.offsetHeight"
+            placeholder="请输入offsetHeight"
+          ></el-input>
+        </el-form-item>
+        <el-form-item
+          label="windowWidth"
+          label-width="120"
+          :rules="{
+            required: true,
+            message: 'windowWidth不能为空',
+            trigger: 'blur',
+          }"
+        >
+          <el-input
+            v-model="offsets.windowWidth"
+            placeholder="请输入windowWidth"
+          ></el-input>
+        </el-form-item>
+        <el-form-item
+          label="windowHeight"
+          label-width="120"
+          :rules="{
+            required: true,
+            message: 'windowHeight不能为空',
+            trigger: 'blur',
+          }"
+        >
+          <el-input
+            v-model="offsets.windowHeight"
+            placeholder="请输入windowHeight"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'isExistPocoEle'">
+        <element-select
+          label="POCO控件"
+          place="请选择POCO控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="poco"
+          :step="step"
+        />
+        <el-form-item
+          label="存在与否"
+          prop="content"
+          :rules="{
+            required: true,
+            message: '断言不能为空',
+            trigger: 'change',
+          }"
+        >
+          <el-select v-model="step.content">
+            <el-option label="存在" value="true"></el-option>
+            <el-option label="不存在" value="false"></el-option>
+          </el-select>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'openApp'">
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+          title="TIPS: 需要临时变量或全局变量时，可以添加{{变量名}}的形式"
+        />
+        <el-form-item
+          prop="text"
+          label="打开应用"
+          :rules="{
+            required: true,
+            message: '包名不能为空',
+            trigger: 'blur',
+          }"
+        >
+          <el-input
+            v-model="step.text"
+            placeholder="请输入启动的App包名"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'terminate'">
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+          title="TIPS: 需要临时变量或全局变量时，可以添加{{变量名}}的形式"
+        />
+        <el-form-item
+          prop="text"
+          label="终止应用"
+          :rules="{
+            required: true,
+            message: '包名不能为空',
+            trigger: 'blur',
+          }"
+        >
+          <el-input
+            v-model="step.text"
+            placeholder="请输入终止的App包名"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'install'">
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+          title="TIPS: 需要临时变量或全局变量时，可以添加{{变量名}}的形式"
+        />
+        <el-form-item
+          label="安装方式"
+          prop="content"
+          :rules="{
+            required: true,
+            message: '安装方式不能为空',
+            trigger: 'change',
+          }"
+        >
+          <el-select v-model="step.content">
+            <el-option label="自定义下载路径或本地安装" :value="1"></el-option>
+            <el-option label="已有安装包列表安装" :value="2"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item
+          v-if="step.content === 1"
+          prop="text"
+          label="安装路径"
+          :rules="{
+            required: true,
+            message: '路径不能为空',
+            trigger: 'blur',
+          }"
+        >
+          <el-input
+            v-model="step.text"
+            placeholder="请输入App下载路径或本地apk路径"
+          ></el-input>
+        </el-form-item>
+        <el-alert
+          v-if="step.content === 2"
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+          title="TIPS: 需要先接入Jenkins插件，并确认安装包管理有对应安装包。多个符合条件的安装包优先选择最新的安装。"
+        />
+        <el-form-item v-if="step.content === 2" prop="text" label="分支名称">
+          <el-input
+            v-model="step.text"
+            placeholder="请输入分支名称，支持模糊匹配，可以为空"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'uninstall'">
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+          title="TIPS: 需要临时变量或全局变量时，可以添加{{变量名}}的形式"
+        />
+        <el-form-item
+          prop="text"
+          label="卸载应用"
+          :rules="{
+            required: true,
+            message: '包名不能为空',
+            trigger: 'blur',
+          }"
+        >
+          <el-input
+            v-model="step.text"
+            placeholder="请输入卸载的App包名"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'runBack'">
+        <el-form-item label="后台运行">
+          <el-input-number
+            v-model="step.content"
+            :min="1000"
+            :step="1000"
+          ></el-input-number>
+          ms
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'appReset'">
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+          title="TIPS: 需要临时变量或全局变量时，可以添加{{变量名}}的形式"
+        />
+        <el-form-item
+          prop="text"
+          label="清空应用"
+          :rules="{
+            required: true,
+            message: '包名不能为空',
+            trigger: 'blur',
+          }"
+        >
+          <el-input
+            v-model="step.text"
+            placeholder="请输入清空应用的App包名"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'toWebView'">
+        <el-form-item label="包名">
+          <el-input
+            v-model="step.content"
+            placeholder="请输入WebView所在包名"
+          ></el-input>
+        </el-form-item>
+        <el-form-item label="进程名">
+          <el-input
+            v-model="step.text"
+            placeholder="（可选）请输入WebView所在进程名，不输入默认为包名"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'toHandle'">
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+          title="TIPS: Handle相当于页面的Tab，切换WebView后找不到页面可以尝试切换Handle"
+        />
+        <el-form-item label="Handle信息">
+          <el-input
+            v-model="step.content"
+            placeholder="请输入Handle页面标题 或 地址 或 index下标"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div
+        v-if="
+          step.stepType === 'isExistEle' ||
+          step.stepType === 'isExistWebViewEle'
+        "
+      >
+        <element-select
+          label="控件元素"
+          place="请选择控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="normal"
+          :step="step"
+        />
+        <el-form-item
+          label="存在与否"
+          prop="content"
+          :rules="{
+            required: true,
+            message: '断言不能为空',
+            trigger: 'change',
+          }"
+        >
+          <el-select v-model="step.content">
+            <el-option label="存在" value="true"></el-option>
+            <el-option label="不存在" value="false"></el-option>
+          </el-select>
+        </el-form-item>
+      </div>
+
+      <div
+        v-if="
+          step.stepType === 'airPlaneMode' ||
+          step.stepType === 'wifiMode' ||
+          step.stepType === 'locationMode'
+        "
+      >
+        <el-form-item
+          label="开启与否"
+          prop="content"
+          :rules="{
+            required: true,
+            message: '状态不能为空',
+            trigger: 'change',
+          }"
+        >
+          <el-select v-model="step.content">
+            <el-option label="开启" value="true"></el-option>
+            <el-option label="关闭" value="false"></el-option>
+          </el-select>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'switchWindowMode'">
+        <el-form-item
+          label="切换模式"
+          prop="content"
+          :rules="{
+            required: true,
+            message: '模式不能为空',
+            trigger: 'change',
+          }"
+        >
+          <el-select v-model="step.content">
+            <el-option label="多窗口模式" value="true"></el-option>
+            <el-option label="单窗口模式" value="false"></el-option>
+          </el-select>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'switchIgnoreMode'">
+        <el-form-item
+          label="是否忽略"
+          prop="content"
+          :rules="{
+            required: true,
+            message: '不能为空',
+            trigger: 'change',
+          }"
+        >
+          <el-select v-model="step.content">
+            <el-option label="忽略" value="true"></el-option>
+            <el-option label="不忽略" value="false"></el-option>
+          </el-select>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'switchVisibleMode'">
+        <el-form-item
+          label="切换显示"
+          prop="content"
+          :rules="{
+            required: true,
+            message: '不能为空',
+            trigger: 'change',
+          }"
+        >
+          <el-select v-model="step.content">
+            <el-option label="显示" value="true"></el-option>
+            <el-option label="隐藏" value="false"></el-option>
+          </el-select>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'click' || step.stepType === 'webViewClick'">
+        <element-select
+          label="控件元素"
+          place="请选择控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="normal"
+          :step="step"
+        />
+      </div>
+
+      <div
+        v-if="
+          step.stepType === 'sendKeys' || step.stepType === 'webViewSendKeys'
+        "
+      >
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+          title="TIPS: 需要临时变量或全局变量时，可以添加{{变量名}}的形式"
+        />
+        <element-select
+          label="控件元素"
+          place="请选择控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="normal"
+          :step="step"
+        />
+        <el-form-item label="输入值">
+          <el-input v-model="step.content" placeholder="请输入值"></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'sendKeyForce'">
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+          title="TIPS: 本功能需要先唤醒系统键盘。需要临时变量或全局变量时，可以添加{{变量名}}的形式。"
+        />
+        <el-form-item label="输入值">
+          <el-input v-model="step.content" placeholder="请输入值"></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'sendKeysByActions'">
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+        >
+          <template #title>
+            <div>
+              TIPS: 使用Android Driver在Flutter页面输入文本时使用此方式。
+            </div>
+            <div>需要临时变量或全局变量时，可以添加{{ 变量名 }}的形式。</div>
+          </template>
+        </el-alert>
+        <element-select
+          label="控件元素"
+          place="请选择控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="normal"
+          :step="step"
+        />
+        <el-form-item label="输入值">
+          <el-input v-model="step.content" placeholder="请输入值"></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'swipe2'">
+        <element-select
+          label="从控件"
+          place="请选择控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="normal"
+          :step="step"
+        />
+        <element-select
+          label="拖拽到"
+          place="请选择控件元素"
+          :index="1"
+          :project-id="projectId"
+          type="normal"
+          :step="step"
+        />
+      </div>
+
+      <div v-if="step.stepType === 'longPress'">
+        <element-select
+          label="控件元素"
+          place="请选择控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="normal"
+          :step="step"
+        />
+        <el-form-item label="长按时间">
+          <el-input-number
+            v-model="step.content"
+            :min="100"
+            :step="100"
+          ></el-input-number>
+          ms
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'clear' || step.stepType === 'webViewClear'">
+        <element-select
+          label="控件元素"
+          place="请选择控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="normal"
+          :step="step"
+        />
+      </div>
+
+      <div
+        v-if="
+          step.stepType === 'getTextValue' ||
+          step.stepType === 'getWebViewTextValue'
+        "
+      >
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+          title="TIPS: 可以将获取的文本放入临时变量中"
+        />
+        <element-select
+          label="控件元素"
+          place="请选择控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="normal"
+          :step="step"
+        />
+        <el-form-item label="变量名">
+          <el-input
+            v-model="step.content"
+            placeholder="请输入变量名"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'getPocoTextValue'">
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+          title="TIPS: 可以将获取的文本放入临时变量中"
+        />
+        <element-select
+          label="控件元素"
+          place="请选择控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="poco"
+          :step="step"
+        />
+        <el-form-item label="变量名">
+          <el-input
+            v-model="step.content"
+            placeholder="请输入变量名"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'setPasteboard'">
+        <el-form-item label="文本信息">
+          <el-input
+            v-model="step.content"
+            placeholder="请输入设置的文本信息"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'getPasteboard'">
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+          title="TIPS: 获取的文本可放入临时变量中"
+        />
+        <el-form-item label="变量名">
+          <el-input
+            v-model="step.content"
+            placeholder="请输入变量名"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div
+        v-if="step.stepType === 'getText' || step.stepType === 'getWebViewText'"
+      >
+        <element-select
+          label="控件元素"
+          place="请选择控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="normal"
+          :step="step"
+        />
+        <el-form-item label="期望值">
+          <el-input
+            v-model="step.content"
+            placeholder="请输入期望值"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'getPocoText'">
+        <element-select
+          label="控件元素"
+          place="请选择控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="poco"
+          :step="step"
+        />
+        <el-form-item label="期望值">
+          <el-input
+            v-model="step.content"
+            placeholder="请输入期望值"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'getTitle' || step.stepType === 'getUrl'">
+        <el-form-item label="期望值">
+          <el-input
+            v-model="step.content"
+            placeholder="请输入期望值"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'getActivity'">
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+          title="TIPS: 需要临时变量或全局变量时，可以添加{{变量名}}的形式"
+        />
+        <global-params-select
+          label="期望值"
+          place="请输入期望值或选择全局变量"
+          :project-id="projectId"
+          :step="step"
+        />
+      </div>
+
+      <div
+        v-if="
+          step.stepType === 'logElementAttr' ||
+          step.stepType === 'logPocoElementAttr'
+        "
+      >
+        <element-select
+          label="控件元素"
+          place="请选择控件元素"
+          :index="0"
+          :project-id="projectId"
+          :type="step.stepType === 'logElementAttr' ? 'normal' : 'poco'"
+          :step="step"
+        />
+        <el-form-item
+          label="控件属性"
+          :rules="{
+            required: true,
+            message: '控件属性不能为空',
+            trigger: 'change',
+          }"
+        >
+          <el-select
+            v-if="step.stepType === 'logPocoElementAttr'"
+            v-model="attrList"
+            label="目标属性"
+            placeholder="请选择控件属性，可多选"
+            multiple
+          >
+            <el-option value="layer"></el-option>
+            <el-option value="name"></el-option>
+            <el-option value="tag"></el-option>
+            <el-option value="text"></el-option>
+            <el-option value="texture"></el-option>
+            <el-option value="_instanceId"></el-option>
+            <el-option value="_ilayer"></el-option>
+            <el-option value="type"></el-option>
+            <el-option value="visible"></el-option>
+            <el-option value="global"></el-option>
+            <el-option value="local"></el-option>
+            <el-option value="components"></el-option>
+            <el-option value="anchorPoint"></el-option>
+            <el-option value="scale"></el-option>
+            <el-option value="size"></el-option>
+            <el-option value="pos"></el-option>
+            <el-option value="clickable"></el-option>
+          </el-select>
+          <el-select
+            v-else-if="step.platform === 1"
+            v-model="attrList"
+            label="目标属性"
+            placeholder="请选择控件属性，可多选"
+            multiple
+          >
+            <el-option value="class"></el-option>
+            <el-option value="password"></el-option>
+            <el-option value="resource-id"></el-option>
+            <el-option value="text"></el-option>
+            <el-option value="content-desc"></el-option>
+            <el-option value="package"></el-option>
+            <el-option value="checkable"></el-option>
+            <el-option value="checked"></el-option>
+            <el-option value="clickable"></el-option>
+            <el-option value="selected"></el-option>
+            <el-option value="displayed"></el-option>
+            <el-option value="enabled"></el-option>
+            <el-option value="focusable"></el-option>
+            <el-option value="focused"></el-option>
+            <el-option value="long-clickable"></el-option>
+            <el-option value="scrollable"></el-option>
+            <el-option value="bounds"></el-option>
+            <el-option value="extras"></el-option>
+            <el-option value="contentSize"></el-option>
+          </el-select>
+          <el-select
+            v-else
+            v-model="attrList"
+            label="目标属性"
+            placeholder="请选择控件属性，可多选"
+            multiple
+          >
+            <el-option value="UID"></el-option>
+            <el-option value="accessibilityContainer"></el-option>
+            <el-option value="accessible"></el-option>
+            <el-option value="enabled"></el-option>
+            <el-option value="index"></el-option>
+            <el-option value="label"></el-option>
+            <el-option value="name"></el-option>
+            <el-option value="rect"></el-option>
+            <el-option value="selected"></el-option>
+            <el-option value="type"></el-option>
+            <el-option value="visible"></el-option>
+          </el-select>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'getElementAttr'">
+        <element-select
+          label="控件元素"
+          place="请选择控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="normal"
+          :step="step"
+        />
+        <el-form-item
+          label="控件属性"
+          prop="text"
+          :rules="{
+            required: true,
+            message: '控件属性不能为空',
+            trigger: 'change',
+          }"
+        >
+          <el-select
+            v-if="step.platform === 1"
+            v-model="step.text"
+            label="属性"
+            placeholder="请选择控件属性"
+          >
+            <el-option value="checkable"></el-option>
+            <el-option value="checked"></el-option>
+            <el-option value="clickable"></el-option>
+            <el-option value="selected"></el-option>
+            <el-option value="displayed"></el-option>
+            <el-option value="enabled"></el-option>
+            <el-option value="focusable"></el-option>
+            <el-option value="focused"></el-option>
+            <el-option value="long-clickable"></el-option>
+            <el-option value="scrollable"></el-option>
+          </el-select>
+          <el-select
+            v-else
+            v-model="step.text"
+            label="属性"
+            placeholder="请选择控件属性"
+          >
+            <el-option value="enabled"></el-option>
+            <el-option value="visible"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item
+          label="期望值"
+          prop="content"
+          :rules="{
+            required: true,
+            message: '断言不能为空',
+            trigger: 'change',
+          }"
+        >
+          <el-select v-model="step.content">
+            <el-option label="true" value="true"></el-option>
+            <el-option label="false" value="false"></el-option>
+          </el-select>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'getPocoElementAttr'">
+        <element-select
+          label="控件元素"
+          place="请选择控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="poco"
+          :step="step"
+        />
+        <el-form-item
+          label="控件属性"
+          prop="text"
+          :rules="{
+            required: true,
+            message: '控件属性不能为空',
+            trigger: 'change',
+          }"
+        >
+          <el-select
+            v-model="step.text"
+            label="属性"
+            placeholder="请选择控件属性"
+          >
+            <el-option value="type"></el-option>
+            <el-option value="name"></el-option>
+            <el-option value="clickable"></el-option>
+            <el-option value="visible"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="期望值" prop="content">
+          <el-input
+            v-model="step.content"
+            placeholder="请输入期望值"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'siriCommand'">
+        <el-form-item label="siri指令">
+          <el-input
+            v-model="step.content"
+            placeholder="请输入siri指令，例：what day is it today?"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div
+        v-if="
+          step.stepType === 'assertEquals' ||
+          step.stepType === 'assertTrue' ||
+          step.stepType === 'assertNotTrue'
+        "
+      >
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+          title="TIPS: 可使用{{变量名}}将全局变量或临时变量插入，验证时将替换该内容为变量值"
+        />
+        <el-form-item label="真实值">
+          <el-input v-model="step.text" placeholder="请输入真实值"></el-input>
+        </el-form-item>
+        <el-form-item label="期望值">
+          <el-input
+            v-model="step.content"
+            placeholder="请输入期望值"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'clickByImg'">
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+          title="TIPS: 默认按顺序使用SIFT特征匹配、AKAZE特征匹配和模板匹配算法"
+        />
+        <element-select
+          label="控件截图"
+          place="请选择控件元素截图"
+          :index="0"
+          :project-id="projectId"
+          type="image"
+          :step="step"
+        />
+      </div>
+
+      <div v-if="step.stepType === 'readText'">
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+          title="TIPS: 默认语言包只有简体中文和英文，需要额外添加可以咨询管理员。"
+        />
+        <el-form-item
+          prop="content"
+          label="识别语言"
+          :rules="{
+            required: true,
+            message: '语言类型不能为空',
+            trigger: 'change',
+          }"
+        >
+          <el-select v-model="step.content" placeholder="请选择识别语言类型">
+            <el-option label="简体中文" value="chi_sim"></el-option>
+            <el-option label="英文" value="eng"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item
+          prop="text"
+          label="期望内容"
+          :rules="{
+            required: true,
+            message: '期望文本不能为空',
+            trigger: 'blur',
+          }"
+        >
+          <el-input
+            v-model="step.text"
+            type="text"
+            placeholder="请输入期望包含的文本内容"
+          ></el-input>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'checkImage'">
+        <element-select
+          label="页面截图"
+          place="请选择页面截图"
+          :index="0"
+          :project-id="projectId"
+          type="image"
+          :step="step"
+        />
+        <el-form-item label="期望相似度">
+          <el-input-number
+            v-model="step.content"
+            :min="70"
+            :step="1"
+          ></el-input-number>
+          %
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'publicStep'">
+        <el-form-item
+          label="公共步骤"
+          prop="text"
+          :rules="{
+            required: true,
+            message: '公共步骤不能为空',
+            trigger: 'change',
+          }"
+        >
+          <el-select
+            v-model="step.text"
+            placeholder="请选择公共步骤"
+            no-data-text="该项目暂未添加公共步骤"
+          >
+            <el-option
+              v-for="item in publicStepList"
+              :key="item.id"
+              :label="item.name"
+              :value="item.id + ''"
+            ></el-option>
+          </el-select>
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'stepHold'">
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+          title="TIPS: 设置后从该步骤开始，后面的每个步骤都会按照设置值来间隔。"
+        />
+        <el-form-item label="步骤间隔">
+          <el-input-number
+            v-model="step.content"
+            :min="0"
+            :step="1000"
+          ></el-input-number>
+          ms
+        </el-form-item>
+      </div>
+
+      <div v-if="step.stepType === 'pause'">
+        <el-form-item label="等待时间">
+          <el-input-number
+            v-model="step.content"
+            :min="1000"
+            :step="1000"
+          ></el-input-number>
+          ms
+        </el-form-item>
+      </div>
+
+      <div
+        v-if="
+          step.stepType === 'findElementInterval' ||
+          step.stepType === 'setDefaultFindPocoElementInterval'
+        "
+      >
+        <el-form-item label="重试次数">
+          <el-input-number
+            v-model="step.content"
+            :min="0"
+            :step="1"
           ></el-input-number>
         </el-form-item>
-        <el-form-item style="margin-top: 10px" label="事件配置">
-          <el-tabs type="border-card" stretch>
-            <el-tab-pane label="详细配置">
-              <el-table :data="monkey.options" border :show-header="false">
-                <el-table-column>
-                  <template #default="scope">
-                    <el-popover
-                      placement="top"
-                      :width="200"
-                      trigger="hover"
-                      :content="monkeyOptions[scope.row.name].des"
-                    >
-                      <template #reference>
-                        <div>{{ monkeyOptions[scope.row.name].label }}</div>
-                      </template>
-                    </el-popover>
-                  </template>
-                </el-table-column>
-                <el-table-column width="190" align="center">
-                  <template #default="scope">
-                    <el-input-number
-                      v-if="isShowInputNumber(scope.row.name)"
-                      v-model="scope.row.value"
-                      style="width: 100%"
-                      size="small"
-                      :min="0"
-                      :step="10"
-                    ></el-input-number>
-                    <el-switch
-                      v-else
-                      v-model="scope.row.value"
-                      active-color="#13ce66"
-                      inactive-color="#ff4949"
-                    >
-                    </el-switch>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </el-tab-pane>
-            <el-tab-pane label="Activity黑名单">
-              <el-table :data="activityList" border :show-header="false">
-                <el-table-column>
-                  <template #default="scope">
-                    <el-input
-                      v-model="scope.row.name"
-                      placeholder="Please input"
-                    />
-                  </template>
-                </el-table-column>
-                <el-table-column width="80" align="center">
-                  <template #default="scope">
-                    <el-button
-                      type="danger"
-                      size="mini"
-                      @click="delObj(scope.row)"
-                      >删除
-                    </el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
-              <div style="text-align: center; margin-top: 10px">
-                <el-button size="mini" @click="add()">新增</el-button>
-              </div>
-            </el-tab-pane>
-          </el-tabs>
+        <el-form-item label="重试间隔">
+          <el-input-number
+            v-model="step.text"
+            :min="0"
+            :step="500"
+          ></el-input-number>
+          ms
         </el-form-item>
-      </el-form>
-    </div>
+      </div>
 
-    <div v-if="step.stepType === 'runScript'">
-      <el-alert
-        show-icon
-        style="margin-bottom: 10px"
-        close-text="Get!"
-        type="info"
+      <div v-if="step.stepType === 'monkey'">
+        <el-form
+          :model="monkey"
+          label-position="left"
+          label-width="90px"
+          class="demo-table-expand"
+          size="small"
+        >
+          <el-form-item label="测试包名">
+            <el-input
+              v-model="monkey.packageName"
+              size="small"
+              type="text"
+              placeholder="请输入测试包名"
+            ></el-input>
+          </el-form-item>
+          <el-form-item label="事件数量">
+            <el-input-number
+              v-model="monkey.pctNum"
+              style="width: 100%"
+              size="small"
+              :min="10"
+              :step="10"
+            ></el-input-number>
+          </el-form-item>
+          <el-form-item style="margin-top: 10px" label="事件配置">
+            <el-tabs type="border-card" stretch>
+              <el-tab-pane label="详细配置">
+                <el-table :data="monkey.options" border :show-header="false">
+                  <el-table-column>
+                    <template #default="scope">
+                      <el-popover
+                        placement="top"
+                        :width="200"
+                        trigger="hover"
+                        :content="monkeyOptions[scope.row.name].des"
+                      >
+                        <template #reference>
+                          <div>{{ monkeyOptions[scope.row.name].label }}</div>
+                        </template>
+                      </el-popover>
+                    </template>
+                  </el-table-column>
+                  <el-table-column width="190" align="center">
+                    <template #default="scope">
+                      <el-input-number
+                        v-if="isShowInputNumber(scope.row.name)"
+                        v-model="scope.row.value"
+                        style="width: 100%"
+                        size="small"
+                        :min="0"
+                        :step="10"
+                      ></el-input-number>
+                      <el-switch
+                        v-else
+                        v-model="scope.row.value"
+                        active-color="#13ce66"
+                        inactive-color="#ff4949"
+                      >
+                      </el-switch>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </el-tab-pane>
+              <el-tab-pane label="Activity黑名单">
+                <el-table :data="activityList" border :show-header="false">
+                  <el-table-column>
+                    <template #default="scope">
+                      <el-input
+                        v-model="scope.row.name"
+                        placeholder="Please input"
+                      />
+                    </template>
+                  </el-table-column>
+                  <el-table-column width="80" align="center">
+                    <template #default="scope">
+                      <el-button
+                        type="danger"
+                        size="mini"
+                        @click="delObj(scope.row)"
+                        >删除
+                      </el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <div style="text-align: center; margin-top: 10px">
+                  <el-button size="mini" @click="add()">新增</el-button>
+                </div>
+              </el-tab-pane>
+            </el-tabs>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <div v-if="step.stepType === 'runScript'">
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          type="info"
+        >
+          <template #title>
+            <span
+              >TIPS: 保存后直接在步骤列表编辑脚本，关于脚本的使用，可参考
+              <a
+                href="https://sonic-cloud.cn/document?tag=runScript"
+                target="_blank"
+              >
+                使用文档
+              </a>
+            </span>
+          </template>
+        </el-alert>
+      </div>
+
+      <div
+        v-if="
+          step.stepType === 'iteratorAndroidElement' ||
+          step.stepType === 'iteratorIOSElement'
+        "
       >
-        <template #title>
-          <span
-            >TIPS: 保存后直接在步骤列表编辑脚本，关于脚本的使用，可参考
-            <a
-              href="https://sonic-cloud.gitee.io/#/Document?tag=runScript"
-              target="_blank"
-            >
-              使用文档
-            </a>
-          </span>
-        </template>
-      </el-alert>
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          title="TIPS: 用于迭代操作控件列表，子步骤中引用【当前迭代控件】以操作列表中的控件"
+          type="info"
+        />
+        <element-select
+          label="控件元素"
+          place="请选择控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="normal"
+          :step="step"
+          :ignore-iterator="true"
+        />
+      </div>
+
+      <div v-if="step.stepType === 'iteratorPocoElement'">
+        <el-alert
+          show-icon
+          style="margin-bottom: 10px"
+          close-text="Get!"
+          title="TIPS: 用于迭代操作控件列表，子步骤中引用【当前迭代控件】以操作列表中的控件"
+          type="info"
+        />
+        <element-select
+          label="控件元素"
+          place="请选择控件元素"
+          :index="0"
+          :project-id="projectId"
+          type="poco"
+          :step="step"
+          :ignore-iterator="true"
+        />
+      </div>
     </div>
 
     <el-form-item label="逻辑处理">
       <el-select
         v-model="step.conditionType"
         placeholder="请选择逻辑条件"
+        :disabled="
+          step.stepType === 'iteratorAndroidElement' ||
+          step.stepType === 'iteratorIOSElement' ||
+          step.stepType === 'iteratorPocoElement'
+        "
         @change="selectCondition"
       >
         <el-option label="无" :value="0"></el-option>

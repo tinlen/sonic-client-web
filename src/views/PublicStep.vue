@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n';
 import PublicStepUpdate from '../components/PublicStepUpdate.vue';
 import Pageable from '../components/Pageable.vue';
 import axios from '../http/axios';
-import StepShow from '../components/StepShow.vue';
+import ChildStepListView from '../components/ChildStepListView.vue';
 
 const { t: $t } = useI18n();
 
@@ -14,6 +14,7 @@ const route = useRoute();
 const dialogVisible = ref(false);
 const pageData = ref({});
 const pageSize = ref(15);
+const pageCurrNum = ref(1);
 const publicStepId = ref(0);
 watch(dialogVisible, (newValue, oldValue) => {
   if (!newValue) {
@@ -34,12 +35,14 @@ const flush = (e) => {
   getPublicStepList();
 };
 const getPublicStepList = (pageNum, pSize) => {
+  pageSize.value = pSize || pageSize.value;
+  pageCurrNum.value = pageNum || pageCurrNum.value;
   axios
     .get('/controller/publicSteps/list', {
       params: {
         projectId: route.params.projectId,
-        page: pageNum || 1,
-        pageSize: pSize || pageSize.value,
+        page: pageCurrNum.value,
+        pageSize: pageSize.value,
       },
     })
     .then((resp) => {
@@ -99,12 +102,7 @@ onMounted(() => {
     $t('publicStepTS.add')
   }}</el-button>
   <el-table :data="pageData['content']" border style="margin-top: 10px">
-    <el-table-column
-      width="100"
-      :label="$t('publicStepTS.id')"
-      prop="id"
-      align="center"
-    />
+    <el-table-column width="100" label="id" prop="id" align="center" />
     <el-table-column
       :label="$t('publicStepTS.name')"
       prop="name"
@@ -121,40 +119,12 @@ onMounted(() => {
     </el-table-column>
     <el-table-column
       :label="$t('publicStepTS.list')"
-      width="110"
+      width="130"
       align="center"
     >
       <template #default="scope">
-        <el-popover placement="left" :width="500" trigger="click">
-          <el-table :data="scope.row.steps" border max-height="350">
-            <el-table-column
-              width="80"
-              :label="$t('publicStepTS.stepId')"
-              prop="id"
-              align="center"
-              show-overflow-tooltip
-            />
-            <el-table-column
-              width="90"
-              :label="$t('publicStepTS.useCase')"
-              align="center"
-            >
-              <template #default="scope">
-                <el-tag v-if="scope.row.caseId === 0" size="mini">{{
-                  $t('common.null')
-                }}</el-tag>
-                <span v-else>{{ scope.row.caseId }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column
-              :label="$t('publicStepTS.stepInfo')"
-              header-align="center"
-            >
-              <template #default="scope">
-                <step-show :step="scope.row" />
-              </template>
-            </el-table-column>
-          </el-table>
+        <el-popover placement="left" :width="700" trigger="click">
+          <child-step-list-view :steps="scope.row.steps" />
           <template #reference>
             <el-button size="mini">{{
               $t('publicStepTS.viewSteps')

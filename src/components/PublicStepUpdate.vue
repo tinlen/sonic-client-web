@@ -1,12 +1,18 @@
 <script setup>
+import { useRoute, useRouter } from 'vue-router';
 import { onMounted, ref, watch } from 'vue';
 import { Delete, Edit, Plus } from '@element-plus/icons';
 import { ElMessage } from 'element-plus';
+import { useI18n } from 'vue-i18n';
 import axios from '../http/axios';
 import StepShow from './StepShow.vue';
 import StepUpdate from './StepUpdate.vue';
 import StepDraggable from './StepDraggable.vue';
 import Pageable from './Pageable.vue';
+
+const { t: $t } = useI18n();
+const router = useRouter();
+const route = useRoute();
 
 const props = defineProps({
   projectId: Number,
@@ -26,11 +32,12 @@ const updatePub = ref(null);
 const parentId = ref(0);
 const pageData = ref({});
 const pageSize = ref(10);
+const pageCurrNum = ref(1);
 const dialogVisible = ref(false);
 const stepId = ref(0);
 const tabValue = ref('select');
 const platformList = [
-  { name: '安卓', value: 1, img: 'ANDROID' },
+  { name: 'Android', value: 1, img: 'ANDROID' },
   { name: 'iOS', value: 2, img: 'IOS' },
 ];
 const getImg = (name) => {
@@ -49,13 +56,15 @@ const getImg = (name) => {
   return result;
 };
 const getStepList = (pageNum, pSize) => {
+  pageSize.value = pSize || pageSize.value;
+  pageCurrNum.value = pageNum || pageCurrNum.value;
   axios
     .get('/controller/steps/list', {
       params: {
         projectId: props.projectId,
         platform: publicStep.value.platform,
-        page: pageNum || 1,
-        pageSize: pSize || pageSize.value,
+        page: pageCurrNum.value,
+        pageSize: pageSize.value,
       },
     })
     .then((resp) => {
@@ -68,13 +77,15 @@ const searchListOfSteps = (pageNum, pSize) => {
   if (searchText.value.length === 0) {
     getStepList(pageNum, pSize);
   } else {
+    pageSize.value = pSize || pageSize.value;
+    pageCurrNum.value = pageNum || pageCurrNum.value;
     axios
       .get('/controller/steps/search/list', {
         params: {
           projectId: props.projectId,
           platform: publicStep.value.platform,
-          page: pageNum || 1,
-          pageSize: pSize || pageSize.value,
+          page: pageCurrNum.value,
+          pageSize: pageSize.value,
           searchContent: searchText.value,
         },
       })
@@ -123,7 +134,7 @@ const flush = async () => {
       .then((resp) => {
         if (resp.code === 2000) {
           ElMessage.success({
-            message: '自动保存中...',
+            message: $t('pubSteps.auto'),
           });
         }
       });
@@ -139,14 +150,14 @@ const addToPublic = (e) => {
   publicStep.value.steps.push(e);
   isAddOrRemoved = true;
   ElMessage.success({
-    message: '选择成功！已加入到已选步骤',
+    message: $t('pubSteps.selectPass'),
   });
 };
 const removeFromPublic = (e) => {
   publicStep.value.steps.splice(e, 1);
   isAddOrRemoved = true;
   ElMessage.success({
-    message: '移出成功！',
+    message: $t('pubSteps.removePass'),
   });
 };
 const emit = defineEmits(['flush']);
@@ -173,19 +184,32 @@ const getPublicStepInfo = (id) => {
   axios.get('/controller/publicSteps', { params: { id } }).then((resp) => {
     if (resp.code === 2000) {
       publicStep.value = resp.data;
+      getStepList();
     }
   });
 };
 onMounted(() => {
   if (props.publicStepId !== 0) {
     getPublicStepInfo(props.publicStepId);
+  } else {
+    getStepList();
   }
-  getStepList();
 });
+const jump = (id) => {
+  let routeData;
+  routeData = router.resolve({
+    path: `/Home/${route.params.projectId}/StepListView/${id}`,
+  });
+  window.open(routeData.href, '_blank');
+};
 </script>
 
 <template>
-  <el-dialog v-model="dialogVisible" title="步骤信息" width="600px">
+  <el-dialog
+    v-model="dialogVisible"
+    :title="$t('pubSteps.stepInfo')"
+    width="600px"
+  >
     <step-update
       v-if="dialogVisible"
       :step-id="stepId"
@@ -206,31 +230,31 @@ onMounted(() => {
   >
     <el-form-item
       prop="name"
-      label="公共步骤名称"
+      :label="$t('pubSteps.name')"
       :rules="{
         required: true,
-        message: '公共步骤名称不能为空',
+        message: $t('pubSteps.nameMsg'),
         trigger: 'blur',
       }"
     >
       <el-input
         v-model="publicStep.name"
-        placeholder="请输入公共步骤名称"
+        :placeholder="$t('pubSteps.namePlace')"
       ></el-input>
     </el-form-item>
     <el-form-item
       prop="platform"
-      label="平台"
+      :label="$t('pubSteps.platform')"
       :rules="{
         required: true,
-        message: '请选择平台',
+        message: $t('pubSteps.platformPlace'),
         trigger: 'change',
       }"
     >
       <el-select
         v-model="publicStep.platform"
         style="width: 100%"
-        placeholder="请选择平台"
+        :placeholder="$t('pubSteps.platformPlace')"
         :disabled="publicStep.steps.length > 0"
         @change="getStepList()"
       >
@@ -257,10 +281,10 @@ onMounted(() => {
     </el-form-item>
   </el-form>
   <el-card v-if="publicStep.id === 0 || publicStep.id === null">
-    <el-result icon="info" title="保存后即可编辑已选步骤"> </el-result>
+    <el-result icon="info" :title="$t('pubSteps.stepTip')"> </el-result>
   </el-card>
   <el-tabs v-else v-model="tabValue" type="border-card" stretch>
-    <el-tab-pane label="已选步骤" name="select">
+    <el-tab-pane :label="$t('pubSteps.selected')" name="select">
       <step-draggable
         :is-edit="true"
         :steps="publicStep.steps"
@@ -272,22 +296,22 @@ onMounted(() => {
         @deleteStep="deleteStep"
       />
     </el-tab-pane>
-    <el-tab-pane label="步骤列表" name="list">
+    <el-tab-pane :label="$t('pubSteps.list')" name="list">
       <el-alert
         style="margin-bottom: 10px"
         show-icon
-        title="从此处添加或编辑步骤，并加入到已选步骤中"
+        :title="$t('pubSteps.listTip')"
         type="info"
         close-text="Get!"
       />
-      <el-button size="mini" round type="primary" @click="addStep"
-        >添加步骤</el-button
-      >
+      <el-button size="mini" round type="primary" @click="addStep">{{
+        $t('pubSteps.addStep')
+      }}</el-button>
       <el-input
         v-model="searchText"
-        style="width: 200px; margin-left: 321px"
+        style="width: 200px; margin-left: 5px"
         type="text"
-        placeholder="按照控件元素名称搜索"
+        :placeholder="$t('pubSteps.searchPlace')"
         size="mini"
         @keyup.enter="searchListOfSteps()"
       ></el-input>
@@ -296,28 +320,34 @@ onMounted(() => {
         type="primary"
         size="mini"
         @click="searchListOfSteps()"
-        >搜索</el-button
+        >{{ $t('pubSteps.search') }}</el-button
       >
       <el-table :data="pageData['content']" border style="margin-top: 10px">
         <el-table-column
           width="80"
-          label="步骤Id"
+          label="id"
           prop="id"
           align="center"
           show-overflow-tooltip
         />
-        <el-table-column width="90" label="所属用例Id" align="center">
+        <el-table-column width="90" :label="$t('pubSteps.case')" align="center">
           <template #default="scope">
-            <el-tag v-if="scope.row.caseId === 0" size="mini">无</el-tag>
+            <el-tag v-if="scope.row.caseId === 0" size="mini">{{
+              $t('common.null')
+            }}</el-tag>
             <span v-else>{{ scope.row.caseId }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="步骤详情" header-align="center">
+        <el-table-column :label="$t('pubSteps.stepInfo')" header-align="center">
           <template #default="scope">
             <step-show :step="scope.row" />
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="140" align="center">
+        <el-table-column
+          :label="$t('common.operate')"
+          width="140"
+          align="center"
+        >
           <template #default="scope">
             <el-button circle size="mini" @click="addToPublic(scope.row)">
               <el-icon :size="13" style="vertical-align: middle">
@@ -335,16 +365,35 @@ onMounted(() => {
               </el-icon>
             </el-button>
             <el-popconfirm
+              v-if="scope.row.caseId === 0"
               style="margin-left: 10px"
               :confirm-button-text="$t('form.confirm')"
               :cancel-button-text="$t('form.cancel')"
               icon="el-icon-warning"
               icon-color="red"
-              title="确定彻底删除该步骤吗？"
+              :title="$t('pubSteps.deleteCaseTip')"
               @confirm="deleteStep(scope.row.id)"
             >
               <template #reference>
                 <el-button circle type="danger" size="mini">
+                  <el-icon :size="13" style="vertical-align: middle">
+                    <Delete />
+                  </el-icon>
+                </el-button>
+              </template>
+            </el-popconfirm>
+            <el-popconfirm
+              v-else
+              style="margin-left: 10px"
+              :confirm-button-text="$t('pubSteps.goToCase')"
+              :cancel-button-text="$t('form.cancel')"
+              icon="el-icon-warning"
+              icon-color="red"
+              :title="$t('pubSteps.goToCaseTip')"
+              @confirm="jump(scope.row.caseId)"
+            >
+              <template #reference>
+                <el-button circle type="warning" size="mini">
                   <el-icon :size="13" style="vertical-align: middle">
                     <Delete />
                   </el-icon>
@@ -364,6 +413,8 @@ onMounted(() => {
     </el-tab-pane>
   </el-tabs>
   <div style="text-align: center; margin-top: 20px">
-    <el-button size="small" type="primary" @click="summit">保存</el-button>
+    <el-button size="small" type="primary" @click="summit">{{
+      $t('form.save')
+    }}</el-button>
   </div>
 </template>

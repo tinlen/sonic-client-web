@@ -19,7 +19,11 @@ import StepLog from '../components/StepLog.vue';
 import axios from '../http/axios';
 import IOSPerfChart from '../components/IOSPerfChart.vue';
 
-const iosPerfChart = ref(null);
+import AndroidPerfChart from '../components/AndroidPerfChart.vue';
+
+const iosPerfChartMap = {};
+
+const androidPerfChartMap = {};
 const { t: $t } = useI18n();
 echarts.use([
   PieChart,
@@ -38,6 +42,7 @@ const testCaseList = ref([]);
 const deviceList = ref([]);
 const caseId = ref(0);
 const deviceId = ref('');
+const lastDevice = ref({});
 const stepList = ref([]);
 const done = ref(false);
 const stepLoading = ref(false);
@@ -132,6 +137,29 @@ const fps = ref([]);
 const disk = ref([]);
 const network = ref([]);
 const procPerf = ref([]);
+const sysCpu = ref([]);
+const sysMem = ref([]);
+const sysNetwork = ref([]);
+const procCpu = ref([]);
+const procMem = ref([]);
+const procFps = ref([]);
+const procThread = ref([]);
+const clearPerfmon = () => {
+  cpu.value = [];
+  mem.value = [];
+  gpu.value = [];
+  fps.value = [];
+  disk.value = [];
+  network.value = [];
+  procPerf.value = [];
+  sysCpu.value = [];
+  sysMem.value = [];
+  sysNetwork.value = [];
+  procCpu.value = [];
+  procMem.value = [];
+  procFps.value = [];
+  procThread.value = [];
+};
 const getPerform = () => {
   axios
     .get('/controller/resultDetail/listAll', {
@@ -142,43 +170,98 @@ const getPerform = () => {
         type: 'perform',
       },
     })
-    .then((resp) => {
+    .then(async (resp) => {
+      await clearPerfmon();
       for (const i in resp.data) {
         const r = JSON.parse(resp.data[i].log);
-        if (r.type === 'sys_cpu') {
-          cpu.value.push(r);
-        }
-        if (r.type === 'sys_mem') {
-          mem.value.push(r);
-        }
-        if (r.type === 'gpu') {
-          gpu.value.push(r);
-        }
-        if (r.type === 'fps') {
-          fps.value.push(r);
-        }
-        if (r.type === 'sys_disk') {
-          disk.value.push(r);
-        }
-        if (r.type === 'sys_network') {
-          network.value.push(r);
-        }
-        if (r.type === 'process') {
-          procPerf.value.push(r);
+        if (r.type) {
+          if (r.type === 'sys_cpu') {
+            cpu.value.push(r);
+          }
+          if (r.type === 'sys_mem') {
+            mem.value.push(r);
+          }
+          if (r.type === 'gpu') {
+            gpu.value.push(r);
+          }
+          if (r.type === 'fps') {
+            fps.value.push(r);
+          }
+          if (r.type === 'sys_disk') {
+            disk.value.push(r);
+          }
+          if (r.type === 'sys_network') {
+            network.value.push(r);
+          }
+          if (r.type === 'process') {
+            procPerf.value.push(r);
+          }
+        } else {
+          if (r.process) {
+            if (r.process.cpuInfo) {
+              procCpu.value.push(r.process.cpuInfo);
+            }
+            if (r.process.memInfo) {
+              procMem.value.push(r.process.memInfo);
+            }
+            if (r.process.fpsInfo) {
+              procFps.value.push(r.process.fpsInfo);
+            }
+            if (r.process.threadInfo) {
+              procThread.value.push(r.process.threadInfo);
+            }
+          }
+          if (r.system) {
+            if (r.system.cpuInfo) {
+              sysCpu.value.push(r.system.cpuInfo);
+            }
+            if (r.system.memInfo) {
+              sysMem.value.push(r.system.memInfo);
+            }
+            if (r.system.networkInfo) {
+              sysNetwork.value.push(r.system.networkInfo);
+            }
+          }
         }
       }
-      iosPerfChart.value.printCpu();
-      iosPerfChart.value.printMem();
-      iosPerfChart.value.printGpu();
-      iosPerfChart.value.printFps();
-      iosPerfChart.value.printDisk();
-      iosPerfChart.value.printNetwork();
-      iosPerfChart.value.printPerfCpu();
-      iosPerfChart.value.printPerfMem();
+
+      if (lastDevice.value.platform === 1) {
+        const key = `${route.params.resultId}-${caseId.value}-${deviceId.value}-androidPerfChart`;
+        androidPerfChartMap[key].printPerfCpu();
+        androidPerfChartMap[key].printPerfMem();
+        androidPerfChartMap[key].printProcFps();
+        androidPerfChartMap[key].printProcThread();
+        androidPerfChartMap[key].printCpu();
+        androidPerfChartMap[key].printSingleCpu();
+        androidPerfChartMap[key].printMem();
+        androidPerfChartMap[key].printNetwork();
+      } else {
+        const key = `${route.params.resultId}-${caseId.value}-${deviceId.value}-iosPerfChart`;
+        iosPerfChartMap[key].printCpu();
+        iosPerfChartMap[key].printMem();
+        iosPerfChartMap[key].printGpu();
+        iosPerfChartMap[key].printFps();
+        iosPerfChartMap[key].printDisk();
+        iosPerfChartMap[key].printNetwork();
+        iosPerfChartMap[key].printPerfCpu();
+        iosPerfChartMap[key].printPerfMem();
+      }
     });
 };
-const switchDevice = async (e) => {
+const setRef = (el, key) => {
+  if (el) {
+    iosPerfChartMap[key] = el;
+  }
+};
+const setAndroidRef = (el, key) => {
+  if (el) {
+    androidPerfChartMap[key] = el;
+  }
+};
+const switchDevice = async (tab, e) => {
   page = 1;
+  lastDevice.value = deviceList.value[tab.index];
+  deviceId.value = lastDevice.value.id;
   done.value = false;
   stepList.value = [];
   type.value = 'log';
@@ -232,7 +315,8 @@ const getDeviceList = (ids) => {
             }
           }
           if (deviceList.value.length > 0) {
-            deviceId.value = `${deviceList.value[0].id}`;
+            lastDevice.value = deviceList.value[0];
+            deviceId.value = `${lastDevice.value.id}`;
             getStepList();
           }
         }
@@ -342,7 +426,7 @@ onUnmounted(() => {
           v-if="results['id']"
           label-position="left"
           class="demo-table-expand"
-          label-width="80px"
+          label-width="120px"
           style="margin-left: 10px; word-break: break-all"
         >
           <el-form-item :label="$t('resultDetailTS.page.resultId')">
@@ -512,8 +596,47 @@ onUnmounted(() => {
                 :label="$t('resultDetailTS.page.performanceInfo')"
                 name="perform"
               >
+                <android-perf-chart
+                  v-if="d.platform === 1"
+                  :ref="
+                    (el) =>
+                      setAndroidRef(
+                        el,
+                        route.params.resultId +
+                          '-' +
+                          c['case'].id +
+                          '-' +
+                          d.id +
+                          '-' +
+                          'androidPerfChart'
+                      )
+                  "
+                  :cid="c['case'].id"
+                  :rid="route.params.resultId"
+                  :did="d.id"
+                  :sys-cpu="sysCpu"
+                  :sys-mem="sysMem"
+                  :sys-network="sysNetwork"
+                  :proc-cpu="procCpu"
+                  :proc-mem="procMem"
+                  :proc-fps="procFps"
+                  :proc-thread="procThread"
+                />
                 <i-o-s-perf-chart
-                  ref="iosPerfChart"
+                  v-if="d.platform === 2"
+                  :ref="
+                    (el) =>
+                      setRef(
+                        el,
+                        route.params.resultId +
+                          '-' +
+                          c['case'].id +
+                          '-' +
+                          d.id +
+                          '-' +
+                          'iosPerfChart'
+                      )
+                  "
                   :cid="c['case'].id"
                   :rid="route.params.resultId"
                   :did="d.id"

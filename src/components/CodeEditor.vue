@@ -29,9 +29,11 @@ import { Codemirror } from 'vue-codemirror';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { java } from '@codemirror/lang-java';
 import { python } from '@codemirror/lang-python';
+import { useI18n } from 'vue-i18n';
 import axios from '../http/axios';
 import Pageable from './Pageable.vue';
 
+const { t: $t } = useI18n();
 const props = defineProps({
   projectId: Number,
   /** 代码内容 */
@@ -151,14 +153,16 @@ const handleStateUpdate = (viewUpdate) => {
 };
 
 const pageData = ref([]);
+const pageCurrNum = ref(1);
 const name = ref('');
 const getScriptList = (pageNum, pSize) => {
+  pageCurrNum.value = pageNum || pageCurrNum.value;
   axios
     .get('/controller/scripts/list', {
       params: {
         projectId: props.projectId,
         name: name.value,
-        page: pageNum || 1,
+        page: pageCurrNum.value,
         pageSize: 5,
       },
     })
@@ -175,7 +179,9 @@ const importAddFrom = (s) => {
   emit('update:language', s.scriptLanguage);
 };
 onMounted(() => {
-  getScriptList();
+  if (props.projectId !== 0) {
+    getScriptList();
+  }
 });
 </script>
 
@@ -187,7 +193,7 @@ onMounted(() => {
         v-model="config.language"
         style="width: 130px"
         size="mini"
-        placeholder="请选择"
+        :placeholder="$t('code.placeholder')"
         @change="emit('update:language', $event)"
       >
         <el-option
@@ -202,7 +208,9 @@ onMounted(() => {
     <div class="item">
       <el-popover placement="top" :width="200" trigger="click">
         <template #reference>
-          <el-button size="mini" icon="el-icon-setting">设置</el-button>
+          <el-button size="mini" icon="el-icon-setting">{{
+            $t('code.settings')
+          }}</el-button>
         </template>
         <div class="form-section">
           <label for="theme">Theme:</label>
@@ -210,7 +218,7 @@ onMounted(() => {
             v-model="config.theme"
             style="width: 130px"
             size="mini"
-            placeholder="请选择"
+            :placeholder="$t('code.placeholder')"
             @change="emit('update:theme', $event)"
           >
             <el-option
@@ -228,7 +236,7 @@ onMounted(() => {
             v-model="config.tabSize"
             style="width: 130px"
             size="mini"
-            placeholder="请选择"
+            :placeholder="$t('code.placeholder')"
             @change="emit('update:tabSize', $event)"
           >
             <el-option
@@ -241,23 +249,18 @@ onMounted(() => {
           </el-select>
         </div>
       </el-popover>
-      <el-popover placement="left" :width="450" trigger="click">
+      <el-popover placement="left" :width="490" trigger="click">
         <template #reference>
-          <el-button size="mini">导入模板</el-button>
+          <el-button size="mini">{{ $t('code.temp') }}</el-button>
         </template>
         <el-table border :data="pageData.content">
-          <el-table-column
-            align="center"
-            width="80"
-            property="id"
-            label="脚本id"
-          />
+          <el-table-column align="center" width="80" property="id" label="id" />
           <el-table-column header-align="center" property="name">
             <template #header>
               <el-input
                 v-model="name"
                 size="mini"
-                placeholder="输入名称搜索"
+                :placeholder="$t('code.table.name')"
                 @input="getScriptList()"
               />
             </template>
@@ -266,21 +269,25 @@ onMounted(() => {
             align="center"
             width="100"
             property="scriptLanguage"
-            label="脚本语言"
+            :label="$t('code.table.lang')"
           />
-          <el-table-column align="center" width="150" label="导入方式">
+          <el-table-column
+            align="center"
+            width="170"
+            :label="$t('code.table.type')"
+          >
             <template #default="scope">
               <el-button
                 type="primary"
                 size="mini"
                 @click="importAddFrom(scope.row)"
-                >追加</el-button
+                >{{ $t('code.table.add') }}</el-button
               >
               <el-button
                 type="primary"
                 size="mini"
                 @click="importReplaceFrom(scope.row)"
-                >替换</el-button
+                >{{ $t('code.table.replace') }}</el-button
               >
             </template>
           </el-table-column>
@@ -293,9 +300,9 @@ onMounted(() => {
           @change="getScriptList"
         ></pageable>
       </el-popover>
-      <el-button size="mini" type="primary" @click="emit('save')"
-        >保存</el-button
-      >
+      <el-button size="mini" type="primary" @click="emit('save')">{{
+        $t('form.save')
+      }}</el-button>
     </div>
   </div>
   <Codemirror
@@ -317,7 +324,7 @@ onMounted(() => {
   />
   <div v-if="showFooter" class="footer">
     <div class="infos">
-      <span class="item">TIPS: 编辑后记得保存哦</span>
+      <span class="item">TIPS: {{ $t('code.tip') }}</span>
       <span class="item">Spaces: {{ config.tabSize }}</span>
       <span class="item">Length: {{ state.length }}</span>
       <span class="item">Lines: {{ state.lines }}</span>
